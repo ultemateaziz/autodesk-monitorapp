@@ -9,6 +9,7 @@ class License extends Model
 {
     protected $fillable = [
         'license_key',
+        'customer_name',
         'tier',
         'is_active',
         'expires_at',
