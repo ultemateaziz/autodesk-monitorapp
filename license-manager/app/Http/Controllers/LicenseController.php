@@ -57,10 +57,15 @@ class LicenseController extends Controller
     public function destroy($id)
     {
         $license = License::findOrFail($id);
+        $key = $license->license_key;
+
+        // Delete all activation records (hardware locks)
         $license->activations()->delete();
+
+        // Delete the license itself
         $license->delete();
 
-        return back()->with('success', 'License key deleted successfully.');
+        return back()->with('success', "License key <strong>$key</strong> deleted successfully. All hardware locks cleared.");
     }
 
     public function regenerate($id)
@@ -70,16 +75,21 @@ class LicenseController extends Controller
         // Generate a fresh key with same tier, reset activation state
         $newKey = 'AEPRO-' . strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4));
 
+        // ── OPTION 1: Clean slate ──
+        // Delete all old activation records (hardware locks)
         $old->activations()->delete();
+
+        // Reset license to fresh state — can be activated on ANY hardware
         $old->update([
-            'license_key' => $newKey,
-            'is_active'   => false,
-            'expires_at'  => null,
-            'machine_id'  => null,
-            'machine_name'=> null,
+            'license_key'  => $newKey,
+            'is_active'    => false,
+            'expires_at'   => null,
+            'machine_id'   => null,
+            'machine_name' => null,
+            'hardware_id'  => null,  // ← Clear old hardware lock
         ]);
 
-        return back()->with('success', "Key regenerated: $newKey — machine must re-activate.");
+        return back()->with('success', "✅ Key regenerated: <strong>$newKey</strong><br/>All old activations cleared. Customer must re-activate on their machine.");
     }
 
     public function apiReference()
@@ -93,11 +103,14 @@ class LicenseController extends Controller
     }
 
     // ── API: called by monitor agent on first use ─────────────
+    // hardware_id = Windows MachineGUID (real hardware fingerprint — the lock)
+    // machine_id  = os.hostname() (human-readable display name)
     public function apiActivate(Request $request)
     {
         $data = $request->validate([
             'license_key' => 'required|string',
-            'machine_id'  => 'required|string',
+            'hardware_id' => 'required|string',   // Windows MachineGUID — REQUIRED for hardware lock
+            'machine_id'  => 'nullable|string',   // hostname — display name only
             'ip_address'  => 'nullable|string',
         ]);
 
@@ -107,9 +120,17 @@ class LicenseController extends Controller
             return response()->json(['status' => 'invalid', 'message' => 'License key not found.'], 404);
         }
 
-        // Already activated on a DIFFERENT machine
-        if ($license->is_active && $license->machine_id && $license->machine_id !== $data['machine_id']) {
-            return response()->json(['status' => 'invalid', 'message' => 'Key already activated on another machine.'], 403);
+        // ── Hardware ID Lock: if already activated on a DIFFERENT hardware ──
+        if ($license->is_active && $license->hardware_id && $license->hardware_id !== $data['hardware_id']) {
+            return response()->json([
+                'status'  => 'hardware_mismatch',
+                'message' => 'This key is already locked to a different machine. Contact your administrator.',
+            ], 403);
+        }
+
+        // ── Check not expired ──
+        if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {
+            return response()->json(['status' => 'expired', 'message' => 'This license key has expired.'], 403);
         }
 
         $days = match($license->tier) {
@@ -120,26 +141,46 @@ class LicenseController extends Controller
             default => 365,
         };
 
-        $expiresAt = $license->expires_at ?? Carbon::now()->addDays($days);
+        $expiresAt    = $license->expires_at ?? Carbon::now()->addDays($days);
+        $machineName  = $data['machine_id'] ?? $data['hardware_id'];  // hostname as display name
 
         $license->update([
             'is_active'    => true,
             'expires_at'   => $expiresAt,
-            'machine_id'   => $data['machine_id'],
-            'machine_name' => $data['machine_id'],
+            'machine_id'   => $machineName,    // hostname for display
+            'machine_name' => $machineName,    // same — friendly name
+            'hardware_id'  => $data['hardware_id'],  // MachineGUID — the real lock
         ]);
 
+        // Create or update activation record — keyed on hardware_id
         $activation = Activation::firstOrCreate(
-            ['license_id' => $license->id, 'machine_id' => $data['machine_id']],
-            ['ip_address' => $data['ip_address'] ?? $request->ip(), 'last_pulse' => now(), 'status' => 'active']
+            [
+                'license_id'  => $license->id,
+                'hardware_id' => $data['hardware_id'],
+            ],
+            [
+                'machine_id'   => $machineName,
+                'machine_name' => $machineName,
+                'ip_address'   => $data['ip_address'] ?? $request->ip(),
+                'last_pulse'   => now(),
+                'status'       => 'active',
+            ]
         );
-        $activation->update(['last_pulse' => now(), 'ip_address' => $data['ip_address'] ?? $request->ip()]);
+
+        $activation->update([
+            'machine_id'   => $machineName,
+            'machine_name' => $machineName,
+            'last_pulse'   => now(),
+            'ip_address'   => $data['ip_address'] ?? $request->ip(),
+        ]);
 
         return response()->json([
-            'status'     => 'activated',
-            'tier'       => $license->tier,
-            'expires_at' => $expiresAt->toDateTimeString(),
-            'days_left'  => (int) Carbon::now()->diffInDays($expiresAt, false),
+            'status'      => 'activated',
+            'tier'        => $license->tier,
+            'expires_at'  => $expiresAt->toDateTimeString(),
+            'days_left'   => (int) Carbon::now()->diffInDays($expiresAt, false),
+            'machine'     => $machineName,
+            'hardware_id' => $data['hardware_id'],
         ]);
     }
 
@@ -148,7 +189,8 @@ class LicenseController extends Controller
     {
         $data = $request->validate([
             'license_key' => 'required|string',
-            'machine_id'  => 'required|string',
+            'hardware_id' => 'required|string',   // Must match what was registered at activation
+            'machine_id'  => 'nullable|string',
         ]);
 
         $license = License::where('license_key', $data['license_key'])->first();
@@ -157,28 +199,43 @@ class LicenseController extends Controller
             return response()->json(['status' => 'invalid', 'message' => 'License key not found.'], 404);
         }
 
+        // ── Hardware ID Lock check ──
+        if ($license->hardware_id && $license->hardware_id !== $data['hardware_id']) {
+            return response()->json([
+                'status'  => 'hardware_mismatch',
+                'message' => 'This key is registered to a different machine.',
+            ], 403);
+        }
+
+        // ── Find activation by hardware_id ──
         $activation = Activation::where('license_id', $license->id)
-            ->where('machine_id', $data['machine_id'])
+            ->where('hardware_id', $data['hardware_id'])
             ->first();
 
         if (! $activation) {
-            return response()->json(['status' => 'not_activated', 'message' => 'Not activated on this machine.'], 403);
+            return response()->json(['status' => 'not_activated', 'message' => 'Not activated on this machine. Please activate first.'], 403);
         }
 
         if ($activation->status === 'locked') {
-            return response()->json(['status' => 'locked', 'message' => 'Access locked by administrator.'], 403);
+            return response()->json(['status' => 'locked', 'message' => 'This machine has been locked by the administrator.'], 403);
         }
 
         if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {
             $activation->update(['status' => 'expired']);
-            return response()->json(['status' => 'expired', 'message' => 'Subscription expired.', 'expired_at' => $license->expires_at->toDateTimeString()], 403);
+            return response()->json([
+                'status'     => 'expired',
+                'message'    => 'Subscription expired. Please renew.',
+                'expired_at' => $license->expires_at->toDateTimeString(),
+            ], 403);
         }
 
         return response()->json([
-            'status'     => 'valid',
-            'tier'       => $license->tier,
-            'expires_at' => $license->expires_at?->toDateTimeString(),
-            'days_left'  => $license->expires_at ? (int) Carbon::now()->diffInDays($license->expires_at, false) : null,
+            'status'      => 'valid',
+            'tier'        => $license->tier,
+            'customer'    => $license->customer_name,
+            'expires_at'  => $license->expires_at?->toDateTimeString(),
+            'days_left'   => $license->expires_at ? (int) Carbon::now()->diffInDays($license->expires_at, false) : null,
+            'machine'     => $activation->machine_name ?? $activation->machine_id,
         ]);
     }
 
@@ -187,7 +244,8 @@ class LicenseController extends Controller
     {
         $data = $request->validate([
             'license_key' => 'required|string',
-            'machine_id'  => 'required|string',
+            'hardware_id' => 'required|string',   // hardware lock
+            'machine_id'  => 'nullable|string',
         ]);
 
         $license = License::where('license_key', $data['license_key'])->first();
@@ -196,12 +254,21 @@ class LicenseController extends Controller
             return response()->json(['status' => 'invalid'], 404);
         }
 
+        // ── Hardware ID Lock check ──
+        if ($license->hardware_id && $license->hardware_id !== $data['hardware_id']) {
+            return response()->json(['status' => 'hardware_mismatch'], 403);
+        }
+
         $activation = Activation::where('license_id', $license->id)
-            ->where('machine_id', $data['machine_id'])
+            ->where('hardware_id', $data['hardware_id'])
             ->first();
 
-        if (! $activation || $activation->status === 'locked') {
-            return response()->json(['status' => $activation?->status ?? 'not_activated'], 403);
+        if (! $activation) {
+            return response()->json(['status' => 'not_activated'], 403);
+        }
+
+        if ($activation->status === 'locked') {
+            return response()->json(['status' => 'locked', 'message' => 'Machine locked by administrator.'], 403);
         }
 
         if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {

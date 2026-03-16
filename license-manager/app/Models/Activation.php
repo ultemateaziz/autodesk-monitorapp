@@ -9,7 +9,9 @@ class Activation extends Model
 {
     protected $fillable = [
         'license_id',
-        'machine_id',
+        'machine_id',    // os.hostname() — human-readable PC name
+        'hardware_id',   // Windows MachineGUID — real hardware fingerprint (lock key)
+        'machine_name',  // friendly display name
         'ip_address',
         'last_pulse',
         'status',

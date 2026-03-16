@@ -13,8 +13,9 @@ class License extends Model
         'tier',
         'is_active',
         'expires_at',
-        'machine_id',
-        'machine_name',
+        'machine_id',    // os.hostname()
+        'machine_name',  // friendly name
+        'hardware_id',   // Windows MachineGUID — the real hardware lock
     ];
 
     protected $casts = [

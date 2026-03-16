@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // ── LicenseHub connection ────────────────────────────
+    'license_manager' => [
+        'url' => env('LICENSE_MANAGER_URL', 'http://127.0.0.1:8001'),
+        'key' => env('LICENSE_KEY', ''),
+    ],
+
 ];
