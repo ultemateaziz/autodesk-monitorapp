@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\LicenseActivationController;
 use Illuminate\Support\Facades\Route;
 
 // Auth Routes
@@ -13,8 +14,14 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Group Protected Routes
+// License Activation (requires login but skips license check)
 Route::middleware(['auth'])->group(function () {
+    Route::get('/activate', [LicenseActivationController::class, 'show'])->name('license.activate');
+    Route::post('/activate', [LicenseActivationController::class, 'activate'])->name('license.activate.post');
+});
+
+// Group Protected Routes
+Route::middleware(['auth', \App\Http\Middleware\CheckLicenseActivated::class])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');

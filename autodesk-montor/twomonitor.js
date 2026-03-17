@@ -5,7 +5,7 @@ const axios = require('axios'); // Import the library to send data
 // --- CONFIGURATION ---
 const CHECK_INTERVAL_MS = 3000;
 // This is the URL we tested successfully with curl
-const API_URL = 'http://127.0.0.1:8000/api/log-activity';
+const API_URL = 'http://192.168.0.200:8000/api/log-activity';
 
 // FINAL PROGRAMMED LIST (Process names without '.exe' for matching)
 const TARGET_PROCESSES = [
