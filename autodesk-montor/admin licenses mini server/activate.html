@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchEng Pro — License Activation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg:#0f1117;--surface:#161b27;--card:#1c2236;--border:rgba(255,255,255,0.07);
+            --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;--accent-glow:rgba(99,102,241,0.25);
+            --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+        body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:48px 48px;z-index:0;pointer-events:none;}
+
+        .wrapper{position:relative;z-index:1;width:100%;max-width:500px;padding:24px;}
+
+        /* ── Card ── */
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 36px;box-shadow:0 24px 60px rgba(0,0,0,0.35);}
+
+        /* ── Brand ── */
+        .brand{display:flex;flex-direction:column;align-items:center;margin-bottom:32px;}
+        .brand-icon{width:64px;height:64px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;color:white;margin-bottom:16px;box-shadow:0 8px 28px rgba(99,102,241,0.4);}
+        .brand-name{font-size:22px;font-weight:700;}
+        .brand-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+
+        /* ── Step indicators ── */
+        .steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:30px;}
+        .step{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;flex:1;}
+        .step-circle{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--card);transition:all 0.3s;position:relative;z-index:1;}
+        .step-label{font-size:11px;color:var(--muted);font-weight:500;white-space:nowrap;}
+        .step.active .step-circle{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);}
+        .step.active .step-label{color:var(--accent);}
+        .step.done .step-circle{border-color:var(--green);background:var(--green);color:white;}
+        .step.done .step-label{color:var(--green);}
+        .step-line{flex:1;height:2px;background:var(--border);margin:0;position:relative;top:-10px;}
+        .step-line.done{background:var(--green);}
+
+        /* ── Form ── */
+        .form-group{margin-bottom:18px;}
+        .form-label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:7px;}
+        .input-wrap{position:relative;}
+        .input-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;}
+        .form-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:11px 14px 11px 38px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;letter-spacing:1px;}
+        .form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+        .form-input.small{font-family:'Outfit',sans-serif;letter-spacing:0;font-size:13px;}
+        .machine-badge{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+
+        /* ── Buttons ── */
+        .btn{width:100%;padding:13px;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:9px;transition:all 0.2s;}
+        .btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;}
+        .btn-primary:hover{opacity:0.9;transform:translateY(-1px);}
+        .btn-primary:active{transform:translateY(0);}
+        .btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+        .btn-ghost{background:var(--card);color:var(--muted);border:1px solid var(--border);}
+        .btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+
+        /* ── Status panels ── */
+        .status-panel{border-radius:12px;padding:16px 18px;margin-top:18px;display:none;}
+        .status-panel.show{display:block;}
+        .status-panel.error{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);}
+        .status-panel.success{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);}
+        .status-panel.loading{background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);}
+        .status-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+        .status-panel.error .status-title{color:#f87171;}
+        .status-panel.success .status-title{color:#10b981;}
+        .status-panel.loading .status-title{color:#818cf8;}
+        .status-msg{font-size:13px;color:var(--muted);line-height:1.5;}
+
+        /* ── Subscription card (success state) ── */
+        .sub-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-top:20px;}
+        .sub-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+        .sub-icon{width:44px;height:44px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;}
+        .sub-title{font-size:16px;font-weight:700;}
+        .sub-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+        .sub-rows{}
+        .sub-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+        .sub-row:last-child{border-bottom:none;}
+        .sub-key{font-size:12px;color:var(--muted);}
+        .sub-val{font-size:13px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+        .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:700;}
+        .badge-green{background:rgba(16,185,129,0.12);color:#10b981;}
+        .badge-blue{background:rgba(99,102,241,0.12);color:#818cf8;}
+        .badge-yellow{background:rgba(245,158,11,0.1);color:#fbbf24;}
+
+        /* ── Days progress bar ── */
+        .progress-wrap{margin-top:4px;}
+        .progress-bar{height:6px;background:var(--border);border-radius:6px;overflow:hidden;margin-top:6px;}
+        .progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#6366f1,#10b981);transition:width 0.8s ease;}
+
+        /* ── Done screen ── */
+        #screen-done{display:none;}
+        #screen-done .done-icon{width:72px;height:72px;background:rgba(16,185,129,0.12);border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--green);margin:0 auto 16px;}
+        #screen-done h2{font-size:20px;font-weight:700;text-align:center;}
+        #screen-done p{color:var(--muted);text-align:center;font-size:13px;margin-top:8px;line-height:1.6;}
+
+        /* ── Spinner ── */
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .spin{display:inline-block;animation:spin 0.8s linear infinite;}
+
+        /* ── Divider ── */
+        .divider{height:1px;background:var(--border);margin:20px 0;}
+
+        /* ── Hint ── */
+        .hint{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px;}
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="card">
+
+        <!-- Brand -->
+        <div class="brand">
+            <div class="brand-icon"><i class="fas fa-key"></i></div>
+            <div class="brand-name">ArchEng Pro</div>
+            <div class="brand-sub">License Activation — Monitor Agent</div>
+        </div>
+
+        <!-- Step indicators -->
+        <div class="steps" id="steps">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Enter Key</div>
+            </div>
+            <div class="step-line" id="line1"></div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Activate</div>
+            </div>
+            <div class="step-line" id="line2"></div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Ready</div>
+            </div>
+        </div>
+
+        <!-- ── SCREEN: Activation form ── -->
+        <div id="screen-form">
+
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-desktop" style="margin-right:6px;"></i>Machine ID</label>
+                <div class="machine-badge">
+                    <i class="fas fa-computer" style="color:var(--accent);"></i>
+                    <span id="machineDisplay">{{MACHINE_ID}}</span>
+                </div>
+                <div class="hint"><i class="fas fa-info-circle"></i> This machine will be bound to the license key</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-server" style="margin-right:6px;"></i>License Server URL</label>
+                <div class="input-wrap">
+                    <i class="fas fa-globe input-icon"></i>
+                    <input type="text" id="serverUrl" class="form-input small" placeholder="http://192.168.1.55:8100" value="{{EXISTING_SERVER}}">
+                </div>
+                <div class="hint"><i class="fas fa-info-circle"></i> Ask your IT admin for the server address</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-key" style="margin-right:6px;"></i>License Key</label>
+                <div class="input-wrap">
+                    <i class="fas fa-ticket input-icon"></i>
+                    <input
+                        type="text"
+                        id="licenseKey"
+                        class="form-input"
+                        placeholder="AEPRO-XXXX-XXXX-XXXX"
+                        value="{{EXISTING_KEY}}"
+                        maxlength="22"
+                        autocomplete="off"
+                        oninput="formatKey(this)"
+                    >
+                </div>
+                <div class="hint"><i class="fas fa-info-circle"></i> Format: AEPRO-XXXX-XXXX-XXXX (provided by your admin)</div>
+            </div>
+
+            <!-- Status panels -->
+            <div class="status-panel loading" id="panelLoading">
+                <div class="status-title"><i class="fas fa-circle-notch spin"></i> Connecting to server...</div>
+                <div class="status-msg" id="loadingMsg">Verifying license key with the server. Please wait.</div>
+            </div>
+
+            <div class="status-panel error" id="panelError">
+                <div class="status-title"><i class="fas fa-circle-exclamation"></i> Activation Failed</div>
+                <div class="status-msg" id="errorMsg"></div>
+            </div>
+
+            <div class="divider"></div>
+
+            <button class="btn btn-primary" id="btnActivate" onclick="activateLicense()">
+                <i class="fas fa-bolt"></i> Activate License
+            </button>
+
+        </div>
+
+        <!-- ── SCREEN: Done ── -->
+        <div id="screen-done">
+            <div class="done-icon"><i class="fas fa-circle-check"></i></div>
+            <h2>Activation Successful!</h2>
+            <p>Your license has been activated on this machine.<br>You can now start the monitor agent.</p>
+
+            <!-- Subscription card -->
+            <div class="sub-card" id="subCard">
+                <div class="sub-header">
+                    <div class="sub-icon"><i class="fas fa-shield-halved"></i></div>
+                    <div>
+                        <div class="sub-title">Active Subscription</div>
+                        <div class="sub-sub" id="subKeyDisplay"></div>
+                    </div>
+                    <span class="badge badge-green" style="margin-left:auto;"><i class="fas fa-circle" style="font-size:7px;"></i> Active</span>
+                </div>
+                <div class="sub-rows">
+                    <div class="sub-row">
+                        <div class="sub-key">Plan</div>
+                        <span class="badge badge-blue" id="subTier">—</span>
+                    </div>
+                    <div class="sub-row">
+                        <div class="sub-key">Expires</div>
+                        <div class="sub-val" id="subExpiry">—</div>
+                    </div>
+                    <div class="sub-row">
+                        <div class="sub-key">Days Remaining</div>
+                        <div>
+                            <div class="sub-val" id="subDays">—</div>
+                            <div class="progress-wrap">
+                                <div class="progress-bar"><div class="progress-fill" id="subProgress" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sub-row">
+                        <div class="sub-key">Machine ID</div>
+                        <div class="sub-val" id="subMachine">{{MACHINE_ID}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;">
+                <button class="btn btn-primary" onclick="closeTool()">
+                    <i class="fas fa-play"></i> Done — Close Activation Tool
+                </button>
+            </div>
+            <div style="margin-top:10px;">
+                <button class="btn btn-ghost" onclick="resetForm()">
+                    <i class="fas fa-rotate-left"></i> Activate a Different Key
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const TIER_LABELS = { '7D': '7 Days', '15D': '15 Days', '6M': '6 Months', '1Y': '1 Year' };
+    const TIER_DAYS   = { '7D': 7, '15D': 15, '6M': 180, '1Y': 365 };
+
+    // Auto-format key as user types: AEPRO-XXXX-XXXX-XXXX
+    function formatKey(input) {
+        let v = input.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        // If user typed without dashes, insert them
+        let raw = v.replace(/-/g, '');
+        if (raw.startsWith('AEPRO')) {
+            // Keep the AEPRO prefix + rebuild segments
+            let rest = raw.slice(5);
+            let segments = [];
+            for (let i = 0; i < rest.length && segments.length < 3; i += 4) {
+                segments.push(rest.slice(i, i + 4));
+            }
+            v = 'AEPRO' + (segments.length ? '-' + segments.join('-') : '');
+        }
+        input.value = v;
+    }
+
+    function setStep(n) {
+        for (let i = 1; i <= 3; i++) {
+            const s = document.getElementById('step' + i);
+            s.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+            if (i < 3) {
+                document.getElementById('line' + i).className = 'step-line' + (i < n ? ' done' : '');
+            }
+        }
+    }
+
+    function showPanel(id) {
+        ['panelLoading','panelError'].forEach(p => {
+            document.getElementById(p).classList.remove('show');
+        });
+        if (id) document.getElementById(id).classList.add('show');
+    }
+
+    async function activateLicense() {
+        const key    = document.getElementById('licenseKey').value.trim();
+        const server = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+
+        if (!key) { showError('Please enter your license key.'); return; }
+        if (!server) { showError('Please enter the license server URL.'); return; }
+        if (!/^AEPRO-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)) {
+            showError('Invalid key format. Expected: AEPRO-XXXX-XXXX-XXXX');
+            return;
+        }
+
+        setStep(2);
+        showPanel('panelLoading');
+        document.getElementById('loadingMsg').textContent = 'Connecting to server and activating license...';
+        document.getElementById('btnActivate').disabled = true;
+
+        try {
+            const res  = await fetch('/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ license_key: key, server_url: server })
+            });
+            const json = await res.json();
+
+            if (json.success) {
+                showSuccess(json.data, key);
+            } else {
+                const data = json.data || {};
+                const msg  = data.message || 'Activation failed. Check the key and server URL.';
+                const hint = getErrorHint(data.status);
+                showError(msg + (hint ? ' ' + hint : ''));
+                setStep(1);
+            }
+        } catch (e) {
+            showError('Could not reach the activation tool server. ' + e.message);
+            setStep(1);
+        }
+
+        document.getElementById('btnActivate').disabled = false;
+    }
+
+    function getErrorHint(status) {
+        const hints = {
+            'invalid':       '→ Key not found in the system.',
+            'not_activated': '→ Please activate on this machine first.',
+            'locked':        '→ This license has been locked by the administrator.',
+            'expired':       '→ Subscription has expired. Please renew.',
+        };
+        return hints[status] || '';
+    }
+
+    function showError(msg) {
+        document.getElementById('errorMsg').textContent = msg;
+        showPanel('panelError');
+    }
+
+    function showSuccess(data, key) {
+        showPanel(null);
+        setStep(3);
+
+        // Fill subscription card
+        document.getElementById('subKeyDisplay').textContent = key;
+        document.getElementById('subTier').textContent = TIER_LABELS[data.tier] || data.tier;
+        document.getElementById('subExpiry').textContent = data.expires_at || '—';
+        document.getElementById('subDays').textContent = data.days_left !== undefined ? data.days_left + ' days' : '—';
+        document.getElementById('subMachine').textContent = document.getElementById('machineDisplay').textContent;
+
+        // Progress bar: days_left / total_days_for_tier
+        if (data.days_left !== null && data.tier) {
+            const total = TIER_DAYS[data.tier] || 365;
+            const pct   = Math.min(100, Math.round((data.days_left / total) * 100));
+            document.getElementById('subProgress').style.width = pct + '%';
+        }
+
+        document.getElementById('screen-form').style.display = 'none';
+        document.getElementById('screen-done').style.display = 'block';
+    }
+
+    async function closeTool() {
+        try { await fetch('/shutdown', { method: 'POST' }); } catch(_) {}
+        window.close();
+    }
+
+    function resetForm() {
+        document.getElementById('screen-done').style.display = 'none';
+        document.getElementById('screen-form').style.display = 'block';
+        setStep(1);
+        showPanel(null);
+    }
+
+    // Check if already activated on page load
+    (async () => {
+        const key    = document.getElementById('licenseKey').value.trim();
+        const server = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+        if (!key || !server) return;
+        document.getElementById('loadingMsg').textContent = 'Checking existing license...';
+        showPanel('panelLoading');
+        try {
+            const res  = await fetch('/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ license_key: key, server_url: server })
+            });
+            const json = await res.json();
+            if (json.success && json.data.status === 'valid') {
+                showSuccess(json.data, key);
+            } else {
+                showPanel(null);
+            }
+        } catch(_) { showPanel(null); }
+    })();
+</script>
+</body>
+</html>

@@ -242,7 +242,7 @@
                                     <td>
                                         @if ($daysLeft !== null)
                                             <span class="{{ $daysLeft < 15 ? 'expiry-warn' : 'expiry-ok' }}" style="font-family:'JetBrains Mono',monospace;font-weight:700;">
-                                                {{ $isExpired ? '—' : $daysLeft . 'd' }}
+                                                {{ $isExpired ? '—' : (int)$daysLeft . ' days left' }}
                                             </span>
                                         @else
                                             <span style="color:var(--muted);">—</span>
