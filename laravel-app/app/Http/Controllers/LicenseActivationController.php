@@ -28,7 +28,7 @@ class LicenseActivationController extends Controller
 
         // ── Call LicenseHub to activate ───────────────────────────
         try {
-            $response = Http::timeout(15)->post("{$serverUrl}/api/license/activate", [
+            $response = Http::withoutVerifying()->timeout(15)->post("{$serverUrl}/api/license/activate", [
                 'license_key' => $key,
                 'hardware_id' => $this->getMachineId(),
                 'machine_id'  => gethostname(),
@@ -70,11 +70,11 @@ class LicenseActivationController extends Controller
 
         // ── Activation failed ─────────────────────────────────────
         $message = match($status) {
-            'already_activated' => 'This key is already activated on a different machine. Please use your assigned key.',
+            'already_activated', 'hardware_mismatch' => 'This key is already locked to a different machine. Please contact your administrator.',
             'expired'           => 'This license key has expired. Please contact your administrator for a new key.',
             'locked'            => 'This license has been locked. Contact your administrator.',
             'invalid'           => 'Invalid license key. Please check the key and try again.',
-            default             => 'Activation failed: ' . ($body['message'] ?? 'Unknown error'),
+            default             => 'Activation failed: ' . ($body['message'] ?? 'Unknown error') . ' (Server Raw: ' . substr($response->body(), 0, 200) . ')',
         };
 
         return back()->withInput()->with('error', $message);
