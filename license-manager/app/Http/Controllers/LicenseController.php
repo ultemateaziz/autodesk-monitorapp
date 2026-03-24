@@ -12,17 +12,35 @@ class LicenseController extends Controller
 {
     public function dashboard()
     {
-        $totalLicenses  = License::count();
-        $activeLicenses = License::where('is_active', true)->count();
-        $lockedLicenses = Activation::where('status', 'locked')->distinct('license_id')->count();
+        $totalLicenses   = License::count();
+        $activeLicenses  = License::where('is_active', true)->count();
+        $lockedLicenses  = Activation::where('status', 'locked')->distinct('license_id')->count();
+        $expiredLicenses = License::where('is_active', true)->where('expires_at', '<', now())->count();
+        $expiringSoon    = License::where('is_active', true)
+                            ->whereBetween('expires_at', [now(), now()->addDays(7)])
+                            ->count();
 
-        return view('dashboard', compact('totalLicenses', 'activeLicenses', 'lockedLicenses'));
+        // Tier breakdown for chart
+        $tierBreakdown = License::selectRaw('tier, COUNT(*) as count')
+                            ->groupBy('tier')
+                            ->pluck('count', 'tier');
+
+        // Recent licenses (last 5)
+        $recentLicenses = License::with('activations')
+                            ->latest()
+                            ->take(5)
+                            ->get();
+
+        return view('dashboard', compact(
+            'totalLicenses','activeLicenses','lockedLicenses',
+            'expiredLicenses','expiringSoon','tierBreakdown','recentLicenses'
+        ));
     }
 
     public function generateKey(Request $request)
     {
         $request->validate([
-            'tier'          => 'required|in:7D,15D,6M,1Y',
+            'tier'          => 'required|in:7D,15D,1M,6M,1Y',
             'customer_name' => 'required|string|max:255',
         ]);
 
@@ -136,6 +154,7 @@ class LicenseController extends Controller
         $days = match($license->tier) {
             '7D'  => 7,
             '15D' => 15,
+            '1M'  => 30,
             '6M'  => 180,
             '1Y'  => 365,
             default => 365,

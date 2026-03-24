@@ -448,11 +448,11 @@ class DashboardController extends Controller
 
         $deptList = ['Architecture', 'MEP', 'Structural', 'Infrastructure', 'Visualization'];
 
-        // Load all revoked software entries for these users, keyed by user_name
+        // Load all revoked software entries — keyed as user_name → [software_name => type]
         $revokedMap = RevokedSoftware::whereIn('user_name', $usernames)
             ->get()
             ->groupBy('user_name')
-            ->map(fn($rows) => $rows->pluck('software_name')->toArray());
+            ->map(fn($rows) => $rows->pluck('type', 'software_name')->toArray());
 
         return view('users', [
             'users'      => $users,
@@ -525,10 +525,32 @@ class DashboardController extends Controller
             ],
             [
                 'revoked_by' => auth()->user()->name,
+                'type'       => 'suspended',
             ]
         );
 
-        return redirect()->back()->with('success', $validated['software_name'] . ' marked as revoked for ' . $validated['user_name']);
+        return redirect()->back()->with('success', $validated['software_name'] . ' suspended for ' . $validated['user_name'] . '. Can be restored anytime.');
+    }
+
+    public function permanentlyRemoveSoftware(Request $request)
+    {
+        $validated = $request->validate([
+            'user_name'     => 'required|string',
+            'software_name' => 'required|string',
+        ]);
+
+        RevokedSoftware::updateOrCreate(
+            [
+                'user_name'     => $validated['user_name'],
+                'software_name' => $validated['software_name'],
+            ],
+            [
+                'revoked_by' => auth()->user()->name,
+                'type'       => 'permanent',
+            ]
+        );
+
+        return redirect()->back()->with('success', $validated['software_name'] . ' permanently removed from ' . $validated['user_name'] . '. Monitoring stopped.');
     }
 
     public function restoreSoftware(Request $request)

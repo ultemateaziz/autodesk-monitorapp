@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en-GB" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -260,6 +260,9 @@
                 </div>
             </div>
         </header>
+
+        {{-- License status banner / full block overlay --}}
+        @include('partials.license_status_banner')
 
         <!-- Content Area -->
         <main class="content-area">

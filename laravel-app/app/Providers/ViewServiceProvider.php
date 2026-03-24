@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Cache;
 use App\Models\UserLicense;
 use App\Models\ActivityLog;
 use App\Models\DismissedNotification;
@@ -77,6 +78,17 @@ class ViewServiceProvider extends ServiceProvider
             });
 
             $view->with('globalNotifications', $notifications);
+
+            // Share license status with every view
+            $licenseStatus = Cache::get('license_status', [
+                'status'   => 'not_configured',
+                'days_left' => null,
+                'tier'      => '',
+                'expires_at'=> '',
+                'customer'  => '',
+                'checked'   => null,
+            ]);
+            $view->with('licenseStatus', $licenseStatus);
         });
     }
 

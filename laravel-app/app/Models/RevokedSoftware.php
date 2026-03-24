@@ -12,5 +12,6 @@ class RevokedSoftware extends Model
         'user_name',
         'software_name',
         'revoked_by',
+        'type',  // 'suspended' = temporary restorable | 'permanent' = no restore
     ];
 }

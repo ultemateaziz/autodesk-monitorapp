@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en-GB" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -849,8 +849,7 @@
                                     return h + 'h ' + m + 'm';
                                 }
                             },
-                            beginAtZero: true,
-                            max: 60
+                            beginAtZero: true
                         }
                     }
                 }
@@ -867,7 +866,7 @@
                     labels: donutLabels.length > 0 ? donutLabels : ['No Data'],
                     datasets: [{
                         data: donutMinutes.length > 0 ? donutMinutes : [1],
-                        backgroundColor: ['#3b82f6', '#60a5fa', '#8b5cf6', '#a855f7', '#6366f1', '#1e293b'],
+                        backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#94a3b8'],
                         borderWidth: 0,
                         hoverOffset: 10,
                         borderRadius: 4

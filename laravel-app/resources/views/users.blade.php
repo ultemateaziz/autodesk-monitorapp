@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en-GB" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -303,6 +303,9 @@
             </div>
         </header>
 
+        {{-- License status banner / full block overlay --}}
+        @include('partials.license_status_banner')
+
         <!-- Content Area -->
         <main class="content-area">
             <header class="page-header">
@@ -416,42 +419,66 @@
                                     @php
                                         $revokedList = $revokedMap->get($user->name, []);
                                     @endphp
-                                    <div style="display: flex; flex-wrap: wrap; gap: 5px; max-width: 280px;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 5px; max-width: 300px;">
                                         @forelse ($user->used_software as $sw)
-                                            @php $isRevoked = in_array($sw, $revokedList); @endphp
-                                            <span style="display: inline-flex; align-items: center; gap: 5px;
-                                                {{ $isRevoked
-                                                    ? 'background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3);'
-                                                    : 'background: rgba(99,102,241,0.12); color: #818cf8;' }}
+                                            @php
+                                                $revokeType = $revokedMap->get($user->name, [])[$sw] ?? null;
+                                                $isSuspended = $revokeType === 'suspended';
+                                                $isPermanent = $revokeType === 'permanent';
+                                                $isRevoked   = $isSuspended || $isPermanent;
+                                            @endphp
+
+                                            @if (!$isPermanent)
+                                            {{-- Show software badge for active + suspended only --}}
+                                            <span style="display: inline-flex; align-items: center; gap: 4px;
+                                                @if ($isSuspended)
+                                                    background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3);
+                                                @else
+                                                    background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid transparent;
+                                                @endif
                                                 padding: 3px 8px 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;">
-                                                <i class="fas {{ $isRevoked ? 'fa-ban' : 'fa-cube' }}" style="font-size: 9px;"></i>
-                                                <span style="{{ $isRevoked ? 'text-decoration: line-through; opacity: 0.7;' : '' }}">{{ $sw }}</span>
+
+                                                <i class="fas {{ $isSuspended ? 'fa-pause-circle' : 'fa-cube' }}" style="font-size: 9px;"></i>
+                                                <span style="{{ $isSuspended ? 'text-decoration: line-through; opacity: 0.7;' : '' }}">{{ $sw }}</span>
+
                                                 @if (auth()->user()->role === 'admin')
-                                                    @if ($isRevoked)
+                                                    @if ($isSuspended)
                                                         {{-- Restore button --}}
-                                                        <form action="{{ route('software.restore') }}" method="POST" style="margin: 0; line-height: 1;">
+                                                        <form action="{{ route('software.restore') }}" method="POST" style="margin:0;line-height:1;">
                                                             @csrf
                                                             <input type="hidden" name="user_name" value="{{ $user->name }}">
                                                             <input type="hidden" name="software_name" value="{{ $sw }}">
-                                                            <button type="submit" title="Restore Access"
-                                                                style="background: none; border: none; cursor: pointer; color: #34d399; font-size: 10px; padding: 0 2px; line-height: 1;">
+                                                            <button type="submit" title="Restore Access (Undo Suspend)"
+                                                                style="background:none;border:none;cursor:pointer;color:#34d399;font-size:10px;padding:0 2px;line-height:1;">
                                                                 <i class="fas fa-undo"></i>
                                                             </button>
                                                         </form>
                                                     @else
-                                                        {{-- Revoke button --}}
-                                                        <form action="{{ route('software.revoke') }}" method="POST" style="margin: 0; line-height: 1;">
+                                                        {{-- Suspend button --}}
+                                                        <form action="{{ route('software.revoke') }}" method="POST" style="margin:0;line-height:1;">
                                                             @csrf
                                                             <input type="hidden" name="user_name" value="{{ $user->name }}">
                                                             <input type="hidden" name="software_name" value="{{ $sw }}">
-                                                            <button type="submit" title="Mark as Revoked"
-                                                                style="background: none; border: none; cursor: pointer; color: #f87171; font-size: 10px; padding: 0 2px; line-height: 1;">
-                                                                <i class="fas fa-times"></i>
+                                                            <button type="submit" title="Suspend (Temporary — Restorable)"
+                                                                style="background:none;border:none;cursor:pointer;color:#fbbf24;font-size:10px;padding:0 2px;line-height:1;">
+                                                                <i class="fas fa-pause"></i>
+                                                            </button>
+                                                        </form>
+                                                        {{-- Permanently Remove button --}}
+                                                        <form action="{{ route('software.remove-permanent') }}" method="POST" style="margin:0;line-height:1;"
+                                                            onsubmit="return confirm('Permanently remove {{ $sw }} from {{ $user->name }}?\n\nThis stops monitoring completely. Cannot be restored easily.')">
+                                                            @csrf
+                                                            <input type="hidden" name="user_name" value="{{ $user->name }}">
+                                                            <input type="hidden" name="software_name" value="{{ $sw }}">
+                                                            <button type="submit" title="Remove Permanently (No Restore)"
+                                                                style="background:none;border:none;cursor:pointer;color:#f87171;font-size:10px;padding:0 2px;line-height:1;">
+                                                                <i class="fas fa-trash-alt"></i>
                                                             </button>
                                                         </form>
                                                     @endif
                                                 @endif
                                             </span>
+                                            @endif
                                         @empty
                                             <span style="font-size: 12px; color: var(--text-secondary); opacity: 0.6;">No activity recorded</span>
                                         @endforelse

@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // HR email for weekly performance reports
+    'hr_email' => env('HR_EMAIL', null),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

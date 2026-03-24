@@ -77,6 +77,7 @@
         .badge-expired  { background: rgba(245,158,11,0.12);  color: #f59e0b; }
         .badge-7D  { background: rgba(59,130,246,0.12);  color: #60a5fa; }
         .badge-15D { background: rgba(99,102,241,0.12);  color: #818cf8; }
+        .badge-1M  { background: rgba(6,182,212,0.12);   color: #22d3ee; }
         .badge-6M  { background: rgba(16,185,129,0.12);  color: #34d399; }
         .badge-1Y  { background: rgba(245,158,11,0.12);  color: #fbbf24; }
 
@@ -164,7 +165,7 @@
 
         @if (session('success'))
             <div style="padding:14px 20px;border-radius:12px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:500;background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);">
-                <i class="fas fa-check-circle"></i> {{ session('success') }}
+                <i class="fas fa-check-circle"></i> {!! session('success') !!}
             </div>
         @endif
 

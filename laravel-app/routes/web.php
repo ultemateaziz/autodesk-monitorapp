@@ -46,6 +46,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckLicenseActivated::class])->
     // Manual Software Revocation
     Route::post('/revoke-software', [DashboardController::class, 'revokeSoftware'])->name('software.revoke');
     Route::post('/restore-software', [DashboardController::class, 'restoreSoftware'])->name('software.restore');
+    Route::post('/remove-software-permanently', [DashboardController::class, 'permanentlyRemoveSoftware'])->name('software.remove-permanent');
 
     // User Management (Master Admin Only)
     Route::get('/user-management', [UserController::class, 'index'])->name('user-management');
