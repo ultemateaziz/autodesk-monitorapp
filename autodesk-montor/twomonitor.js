@@ -33,16 +33,18 @@ console.log(`[WATCHING] Tracking active focus on AEC software...`);
 console.log('------------------------------------------------');
 
 function checkActiveWindow() {
-    // PowerShell command to get the Process Name of the currently ACTIVE window
-    const psScript = `powershell -command "Add-Type -MemberDefinition '[DllImport(\\"user32.dll\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\"user32.dll\\")] public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);' -Name Win32 -Namespace User32; $hwnd = [User32.Win32]::GetForegroundWindow(); [int]$pidOut = 0; [User32.Win32]::GetWindowThreadProcessId($hwnd, [ref]$pidOut); Get-Process -Id $pidOut | Select-Object -ExpandProperty ProcessName"`;
+    // PowerShell command to get Process Name AND Window Title of the currently ACTIVE window
+    const psScript = `powershell -command "Add-Type -MemberDefinition '[DllImport(\\"user32.dll\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\"user32.dll\\")] public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);' -Name Win32 -Namespace User32; $hwnd = [User32.Win32]::GetForegroundWindow(); [int]$pidOut = 0; [User32.Win32]::GetWindowThreadProcessId($hwnd, [ref]$pidOut); $p = Get-Process -Id $pidOut; Write-Output ($p.ProcessName + '|' + $p.MainWindowTitle)"`;
 
     exec(psScript, (error, stdout, stderr) => {
         if (error) {
             return; // Ignore errors
         }
 
-        // Get the name of the app the user is looking at RIGHT NOW
-        const activeApp = stdout.trim().toLowerCase();
+        // Split output into process name and window title
+        const parts = stdout.trim().split('|');
+        const activeApp = (parts[0] || '').toLowerCase();
+        const windowTitle = parts[1] || '';
 
         // Mapping process names to Friendly Software Names
         const SOFTWARE_MAPPING = {
@@ -67,11 +69,12 @@ function checkActiveWindow() {
 
         if (foundTarget) {
             // MATCH FOUND: Get the clean name (e.g., "AutoCAD")
-            const cleanSoftwareName = SOFTWARE_MAPPING[foundTarget];
-            // Calculate Local Timestamp (correcting UTC to your local time)
-            const tzOffset = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
-            const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 19).replace('T', ' ');
-            const timestamp = localISOTime;
+            // Extract version year from window title (e.g., "Autodesk AutoCAD 2026 - Drawing1.dwg" → "2026")
+            const yearMatch = windowTitle.match(/\b(20[2-3]\d)\b/);
+            const version = yearMatch ? ` ${yearMatch[1]}` : '';
+            const cleanSoftwareName = SOFTWARE_MAPPING[foundTarget] + version; // e.g. "AutoCAD 2026"
+            // Send UTC timestamp — Laravel converts to Asia/Dubai for display
+            const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
             const payload = {
                 machine_name: machineId,
