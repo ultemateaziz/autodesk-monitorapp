@@ -13,5 +13,6 @@ class UserProfile extends Model
         'user_name',
         'display_name',
         'department',
+        'email',
     ];
 }

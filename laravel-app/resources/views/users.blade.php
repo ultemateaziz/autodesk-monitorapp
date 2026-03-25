@@ -500,7 +500,8 @@
                                             <button class="action-icon action-edit open-edit-profile-modal"
                                                 data-username="{{ $user->name }}"
                                                 data-displayname="{{ $user->display_name ?? $user->name }}"
-                                                data-dept="{{ $user->department }}" title="Edit Profile"
+                                                data-dept="{{ $user->department }}"
+                                                data-email="{{ $user->email ?? '' }}" title="Edit Profile"
                                                 style="background: none; border: none; cursor: pointer; color: var(--text-primary);">
                                                 <i class="fas fa-pencil"></i>
                                             </button>
@@ -623,6 +624,20 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label
+                            style="display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Email Address</label>
+                        <div class="input-with-icon" style="position: relative;">
+                            <i class="fas fa-envelope"
+                                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                            <input type="email" name="email" id="edit_email"
+                                placeholder="user@company.com"
+                                style="width: 100%; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px 12px 40px; border-radius: 12px; outline: none;">
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.8;">
+                            Used for weekly and individual performance email reports.
+                        </p>
+                    </div>
                 </div>
                 <div class="modal-footer"
                     style="padding: 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: rgba(0,0,0,0.02);">
@@ -709,6 +724,7 @@
         const editUserNameInput = document.getElementById('edit_user_name');
         const editDisplayNameInput = document.getElementById('edit_display_name');
         const editDeptSelect = document.getElementById('edit_department');
+        const editEmailInput = document.getElementById('edit_email');
         const closeEditModalBtn = document.getElementById('closeEditModal');
 
         document.querySelectorAll('.open-edit-profile-modal').forEach(btn => {
@@ -716,10 +732,12 @@
                 const username = btn.getAttribute('data-username');
                 const displayname = btn.getAttribute('data-displayname');
                 const dept = btn.getAttribute('data-dept');
+                const email = btn.getAttribute('data-email');
 
                 editUserNameInput.value = username;
                 editDisplayNameInput.value = displayname;
                 editDeptSelect.value = dept;
+                editEmailInput.value = email;
 
                 editProfileModal.classList.add('active');
             });

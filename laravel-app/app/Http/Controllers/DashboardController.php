@@ -465,10 +465,12 @@ class DashboardController extends Controller
             $profile     = $allProfiles->get($name);
             $department  = $profile ? $profile->department  : 'Unassigned';
             $displayName = $profile ? $profile->display_name : null;
+            $email       = $profile ? $profile->email : null;
 
             $users[] = (object)[
                 'name'             => $name,
                 'display_name'     => $displayName,
+                'email'            => $email,
                 'last_app'         => $this->mapApplicationName($lastLog ? $lastLog->application : 'N/A'),
                 'last_seen'        => $lastLog ? $lastLog->recorded_at->diffForHumans() : 'Never',
                 'is_online'        => $lastLog && $lastLog->recorded_at->diffInSeconds(now()) < 60,
@@ -497,16 +499,18 @@ class DashboardController extends Controller
     public function updateProfile(Request $request)
     {
         $request->validate([
-            'user_name' => 'required',
+            'user_name'    => 'required',
             'display_name' => 'nullable|string|max:255',
-            'department' => 'required'
+            'department'   => 'required',
+            'email'        => 'nullable|email|max:255',
         ]);
 
         UserProfile::updateOrCreate(
             ['user_name' => $request->user_name],
             [
                 'display_name' => $request->display_name,
-                'department' => $request->department
+                'department'   => $request->department,
+                'email'        => $request->email,
             ]
         );
 
