@@ -48,19 +48,28 @@ class DashboardController extends Controller
         $totalHours = floor($totalSeconds / 3600);
         $totalMinutes = floor(($totalSeconds % 3600) / 60);
 
-        // 3. Market Share — aggregate in DB (GROUP BY application)
-        $marketQuery = ActivityLog::whereBetween('recorded_at', [$from, $to])
-            ->selectRaw('application, COUNT(*) as cnt');
+        // 3. Market Share — period-adjusted date range (matches timeline chart)
+        $marketFrom = match($period) {
+            'weekly'  => Carbon::parse($endDate)->subDays(6)->startOfDay(),
+            'monthly' => Carbon::parse($endDate)->subDays(29)->startOfDay(),
+            default   => $from,
+        };
+        $marketTo = $to;
+
+        $marketQuery = ActivityLog::whereBetween('recorded_at', [$marketFrom, $marketTo])
+            ->selectRaw('application, COUNT(*) as cnt, COUNT(DISTINCT user_name) as user_count');
         if ($authorizedUsernames !== null) {
             $marketQuery->whereIn('user_name', $authorizedUsernames);
         }
         $rawMarket = $marketQuery->groupBy('application')->get();
 
         // Map raw application names to friendly names and aggregate
-        $aggregatedMarket = [];
+        $aggregatedMarket      = [];
+        $aggregatedUserCounts  = [];
         foreach ($rawMarket as $row) {
             $cleanName = $this->mapApplicationName($row->application);
-            $aggregatedMarket[$cleanName] = ($aggregatedMarket[$cleanName] ?? 0) + $row->cnt;
+            $aggregatedMarket[$cleanName]     = ($aggregatedMarket[$cleanName] ?? 0) + $row->cnt;
+            $aggregatedUserCounts[$cleanName] = ($aggregatedUserCounts[$cleanName] ?? 0) + $row->user_count;
         }
         arsort($aggregatedMarket);
         $marketShare = [];
@@ -73,6 +82,7 @@ class DashboardController extends Controller
             $marketShare[] = (object)[
                 'application'    => $app,
                 'count'          => $count,
+                'user_count'     => $aggregatedUserCounts[$app] ?? 0,
                 'minutes'        => round($totalSeconds / 60, 1),
                 'formatted_time' => $formattedTime
             ];
@@ -149,25 +159,48 @@ class DashboardController extends Controller
         }
 
         $chartDatasets = [];
-        $colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#94a3b8'];
+        $appColorMap = [
+            'AutoCAD'                   => '#3b82f6',
+            'Revit'                     => '#f97316',
+            '3ds Max'                   => '#a855f7',
+            'Navisworks'                => '#06b6d4',
+            'InfraWorks'                => '#10b981',
+            'ReCap Pro'                 => '#ef4444',
+            'Autodesk Docs'             => '#6366f1',
+            'FormIt'                    => '#ec4899',
+            'Robot Structural Analysis' => '#f59e0b',
+            'Structural Bridge Design'  => '#22d3ee',
+            'Inventor'                  => '#84cc16',
+            'Fusion 360'                => '#f43f5e',
+            'Fabrication ESTmep'        => '#d97706',
+            'Fabrication CAMduct'       => '#7c3aed',
+        ];
+        $fallbackColors = ['#94a3b8', '#64748b', '#475569', '#334155'];
         $colorIdx = 0;
 
         foreach (array_keys($appsFound) as $appName) {
+            $color = $fallbackColors[$colorIdx % count($fallbackColors)];
+            foreach ($appColorMap as $key => $clr) {
+                if (str_starts_with($appName, $key)) { $color = $clr; break; }
+            }
             $bucketValues = [];
             for ($i = 0; $i < $numBuckets; $i++) {
                 $count = $appTimelineRaw[$appName][$i] ?? 0;
-                // Standardize to Minutes (Average Minutes per Hour for that day)
                 $minutes = round(($count * 3) / 60, 1);
                 $bucketValues[] = $minutes;
             }
             $chartDatasets[] = [
-                'label' => $appName,
-                'data' => $bucketValues,
-                'borderColor' => $colors[$colorIdx % count($colors)],
-                'backgroundColor' => $colors[$colorIdx % count($colors)] . '1a',
-                'fill' => true,
-                'tension' => 0.4,
-                'pointRadius' => 2
+                'label'           => $appName,
+                'data'            => $bucketValues,
+                'borderColor'     => $color,
+                'backgroundColor' => $color . '22',
+                'fill'            => true,
+                'tension'         => 0.4,
+                'borderWidth'     => 2.5,
+                'pointRadius'     => 4,
+                'pointHoverRadius'=> 7,
+                'pointBorderColor'=> $color,
+                'pointBackgroundColor' => $color,
             ];
             $colorIdx++;
         }

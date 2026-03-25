@@ -860,15 +860,43 @@
             const donutMinutes = @json($donutMinutes);
             const donutFormattedTimes = @json($donutFormattedTimes);
 
+            // Consistent software color palette
+            const APP_COLORS = {
+                'AutoCAD':                   '#3b82f6',
+                'Revit':                     '#f97316',
+                '3ds Max':                   '#a855f7',
+                'Navisworks':                '#06b6d4',
+                'InfraWorks':                '#10b981',
+                'ReCap Pro':                 '#ef4444',
+                'Autodesk Docs':             '#6366f1',
+                'FormIt':                    '#ec4899',
+                'Robot Structural Analysis': '#f59e0b',
+                'Structural Bridge Design':  '#22d3ee',
+                'Inventor':                  '#84cc16',
+                'Fusion 360':                '#f43f5e',
+                'Fabrication ESTmep':        '#d97706',
+                'Fabrication CAMduct':       '#7c3aed',
+            };
+            const fallbackPalette = ['#94a3b8','#64748b','#475569'];
+            function getAppColor(name, idx) {
+                for (const [key, clr] of Object.entries(APP_COLORS)) {
+                    if (name.startsWith(key)) return clr;
+                }
+                return fallbackPalette[idx % fallbackPalette.length];
+            }
+            const profileDonutColors = donutLabels.map((lbl, i) => getAppColor(lbl, i));
+
             donutChart = new Chart(ctxDonut, {
                 type: 'doughnut',
                 data: {
                     labels: donutLabels.length > 0 ? donutLabels : ['No Data'],
                     datasets: [{
                         data: donutMinutes.length > 0 ? donutMinutes : [1],
-                        backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#94a3b8'],
-                        borderWidth: 0,
-                        hoverOffset: 10,
+                        backgroundColor: profileDonutColors.length > 0 ? profileDonutColors : ['#334155'],
+                        borderWidth: 3,
+                        borderColor: '#0f172a',
+                        hoverOffset: 12,
+                        hoverBorderWidth: 0,
                         borderRadius: 4
                     }]
                 },

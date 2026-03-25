@@ -120,27 +120,48 @@ class ProfileController extends Controller
         }
 
         $timelineDatasets = [];
-        $colors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+        $appColorMap = [
+            'AutoCAD'                   => '#3b82f6',
+            'Revit'                     => '#f97316',
+            '3ds Max'                   => '#a855f7',
+            'Navisworks'                => '#06b6d4',
+            'InfraWorks'                => '#10b981',
+            'ReCap Pro'                 => '#ef4444',
+            'Autodesk Docs'             => '#6366f1',
+            'FormIt'                    => '#ec4899',
+            'Robot Structural Analysis' => '#f59e0b',
+            'Structural Bridge Design'  => '#22d3ee',
+            'Inventor'                  => '#84cc16',
+            'Fusion 360'                => '#f43f5e',
+            'Fabrication ESTmep'        => '#d97706',
+            'Fabrication CAMduct'       => '#7c3aed',
+        ];
+        $fallbackColors = ['#94a3b8', '#64748b', '#475569'];
         $colorIdx = 0;
 
         foreach (array_keys($appsFound) as $appName) {
+            $color = $fallbackColors[$colorIdx % count($fallbackColors)];
+            foreach ($appColorMap as $key => $clr) {
+                if (str_starts_with($appName, $key)) { $color = $clr; break; }
+            }
             $hourlyMinutes = [];
             for ($i = 0; $i < 24; $i++) {
                 $count = $appTimelineRaw[$appName][$i] ?? 0;
                 $minutes = round(($count * 3) / 60, 1);
                 $hourlyMinutes[] = $minutes;
             }
-            
             $timelineDatasets[] = [
-                'label' => $appName,
-                'data' => $hourlyMinutes,
-                'borderColor' => $colors[$colorIdx % count($colors)],
-                'backgroundColor' => $colors[$colorIdx % count($colors)] . '44',
-                'fill' => true,
-                'tension' => 0.4,
-                'borderWidth' => 2,
-                'pointRadius' => 0,
-                'pointHoverRadius' => 4
+                'label'                => $appName,
+                'data'                 => $hourlyMinutes,
+                'borderColor'          => $color,
+                'backgroundColor'      => $color . '22',
+                'fill'                 => true,
+                'tension'              => 0.4,
+                'borderWidth'          => 2.5,
+                'pointRadius'          => 4,
+                'pointHoverRadius'     => 7,
+                'pointBorderColor'     => $color,
+                'pointBackgroundColor' => $color,
             ];
             $colorIdx++;
         }

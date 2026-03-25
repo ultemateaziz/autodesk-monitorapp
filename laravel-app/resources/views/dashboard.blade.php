@@ -345,14 +345,21 @@
 
                 <!-- Market Share Donut Chart -->
                 <div class="card card-floating">
-                    <div class="card-header">
+                    <div class="card-header" style="justify-content:space-between;align-items:center;">
                         <span class="card-title">Application Market Share</span>
+                        <span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(99,102,241,0.12);color:#818cf8;text-transform:uppercase;letter-spacing:0.5px;">
+                            @if($period === 'weekly') Last 7 Days
+                            @elseif($period === 'monthly') Last 30 Days
+                            @elseif($period === 'hourly') Hourly
+                            @else {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} – {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                            @endif
+                        </span>
                     </div>
                     <div class="market-chart-container">
                         <canvas id="marketChart"></canvas>
                         <div class="chart-center-text">
-                            <span class="center-val">100%</span>
-                            <span class="center-label">Total Usage</span>
+                            <span class="center-val">{{ count($marketShare) }}</span>
+                            <span class="center-label">Apps Used</span>
                         </div>
                     </div>
                 </div>
@@ -538,7 +545,19 @@
                             usePointStyle: true,
                             callbacks: {
                                 label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y + ' min/hr';
+                                    const totalSec = Math.round(context.parsed.y * 60);
+                                    const h = Math.floor(totalSec / 3600);
+                                    const m = Math.floor((totalSec % 3600) / 60);
+                                    const s = totalSec % 60;
+                                    let timeStr;
+                                    if (h > 0) {
+                                        timeStr = h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+                                    } else if (s > 0) {
+                                        timeStr = m + 'm ' + s + 's';
+                                    } else {
+                                        timeStr = m + 'm';
+                                    }
+                                    return context.dataset.label + ': ' + timeStr + '/hr';
                                 }
                             }
                         }
@@ -581,7 +600,7 @@
                                 },
                                 stepSize: 5,
                                 callback: function(value) {
-                                    return value + ' min';
+                                    return value === 60 ? '60m' : value + 'm';
                                 }
                             },
                             min: 0,
@@ -593,9 +612,36 @@
 
             // Market Share Chart
             const marketData = @json($marketShare);
-            const marketLabels = marketData.map(item => item.application);
-            const marketMinutes = marketData.map(item => item.minutes);
+            const marketLabels       = marketData.map(item => item.application);
+            const marketMinutes      = marketData.map(item => item.minutes);
             const marketFormattedTimes = marketData.map(item => item.formatted_time);
+            const marketUserCounts   = marketData.map(item => item.user_count);
+
+            // Consistent software color palette (same as line chart)
+            const APP_COLORS = {
+                'AutoCAD':                   '#3b82f6',
+                'Revit':                     '#f97316',
+                '3ds Max':                   '#a855f7',
+                'Navisworks':                '#06b6d4',
+                'InfraWorks':                '#10b981',
+                'ReCap Pro':                 '#ef4444',
+                'Autodesk Docs':             '#6366f1',
+                'FormIt':                    '#ec4899',
+                'Robot Structural Analysis': '#f59e0b',
+                'Structural Bridge Design':  '#22d3ee',
+                'Inventor':                  '#84cc16',
+                'Fusion 360':                '#f43f5e',
+                'Fabrication ESTmep':        '#d97706',
+                'Fabrication CAMduct':       '#7c3aed',
+            };
+            const fallbackPalette = ['#94a3b8','#64748b','#475569','#334155'];
+            function getAppColor(name, idx) {
+                for (const [key, clr] of Object.entries(APP_COLORS)) {
+                    if (name.startsWith(key)) return clr;
+                }
+                return fallbackPalette[idx % fallbackPalette.length];
+            }
+            const donutColors = marketLabels.map((lbl, i) => getAppColor(lbl, i));
 
             marketChart = new Chart(ctxMarket, {
                 type: 'doughnut',
@@ -603,18 +649,12 @@
                     labels: marketLabels.length > 0 ? marketLabels : ['No Data'],
                     datasets: [{
                         data: marketMinutes.length > 0 ? marketMinutes : [1],
-                        backgroundColor: [
-                            '#ef4444',
-                            '#3b82f6',
-                            '#10b981',
-                            '#f59e0b',
-                            '#8b5cf6',
-                            '#ec4899',
-                            '#94a3b8'
-                        ],
-                        borderWidth: 0,
-                        hoverOffset: 15,
-                        cutout: '80%'
+                        backgroundColor: donutColors.length > 0 ? donutColors : ['#334155'],
+                        borderWidth: 3,
+                        borderColor: isDark ? '#0f172a' : '#ffffff',
+                        hoverOffset: 18,
+                        hoverBorderWidth: 0,
+                        cutout: '78%'
                     }]
                 },
                 options: {
@@ -640,14 +680,24 @@
                             bodyColor: isDark ? '#94a3b8' : '#64748b',
                             borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
                             borderWidth: 1,
-                            padding: 12,
+                            padding: 14,
                             displayColors: true,
                             usePointStyle: true,
                             callbacks: {
+                                title: function(items) {
+                                    return items[0].label;
+                                },
                                 label: function(context) {
-                                    const appName = context.label;
-                                    const timeStr = marketFormattedTimes[context.dataIndex];
-                                    return appName + ': ' + timeStr;
+                                    const i = context.dataIndex;
+                                    const users = marketUserCounts[i];
+                                    const time  = marketFormattedTimes[i];
+                                    const total = marketMinutes.reduce((a, b) => a + b, 0);
+                                    const pct   = total > 0 ? Math.round((marketMinutes[i] / total) * 100) : 0;
+                                    return [
+                                        '  Time Used : ' + time,
+                                        '  Users      : ' + users + ' user' + (users !== 1 ? 's' : ''),
+                                        '  Share      : ' + pct + '%'
+                                    ];
                                 }
                             }
                         }
