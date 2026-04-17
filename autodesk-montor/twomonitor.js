@@ -138,7 +138,7 @@ function getBackgroundAutodeskApps(activeProcessName, callback) {
 
 // ─── FEATURE 1 (existing): FOREGROUND ACTIVE WINDOW CHECK ────────────────────
 function checkActiveWindow() {
-    const psScript = `powershell -command "Add-Type -MemberDefinition '[DllImport(\\"user32.dll\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\"user32.dll\\")] public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);' -Name Win32 -Namespace User32; $hwnd = [User32.Win32]::GetForegroundWindow(); [int]$pidOut = 0; [User32.Win32]::GetWindowThreadProcessId($hwnd, [ref]$pidOut); $p = Get-Process -Id $pidOut; Write-Output ($p.ProcessName + '|' + $p.MainWindowTitle)"`;
+    const psScript = `powershell -command "try { if (-not ([System.Management.Automation.PSTypeName]'WinHelper.FgWin').Type) { Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; namespace WinHelper { public class FgWin { [DllImport(\\"user32.dll\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\"user32.dll\\")] public static extern int GetWindowThreadProcessId(IntPtr h, out int pid); } }' } ; $h=[WinHelper.FgWin]::GetForegroundWindow(); [int]$p=0; [WinHelper.FgWin]::GetWindowThreadProcessId($h,[ref]$p)|Out-Null; $proc=Get-Process -Id $p -ErrorAction SilentlyContinue; if($proc){ Write-Output($proc.ProcessName+'|'+$proc.MainWindowTitle) } } catch {}"`;
 
     exec(psScript, (error, stdout) => {
         if (error) return;
