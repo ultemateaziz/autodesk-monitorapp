@@ -11,6 +11,7 @@ class ActivityLog extends Model
         'user_name',
         'application',
         'status',
+        'ip_address',
         'recorded_at',
     ];
 

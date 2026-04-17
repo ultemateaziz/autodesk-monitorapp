@@ -60,12 +60,12 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 260px;
+    width: 300px;
     background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 24px 16px;
     height: 100%;
     z-index: 100;
 }

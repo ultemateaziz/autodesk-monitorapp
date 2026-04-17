@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | Settings</title>
+    <title>ASCLAM | Settings</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -152,7 +152,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
 
         <ul class="nav-menu">
@@ -222,9 +222,18 @@
             @endif
             <li class="nav-item">
                 <a href="{{ route('settings') }}" class="nav-link active">
-                    <i class="fas fa-cog"></i><span>Settings</span>
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
 
         <div class="sidebar-footer">
@@ -296,6 +305,54 @@
                     </div>
                 </div>
 
+                <!-- Change Password Card (all roles) -->
+                <div class="settings-card" style="border-left: 4px solid #3b82f6;">
+                    <div class="settings-icon-box" style="background: rgba(59,130,246,0.1); color: #3b82f6;">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div class="settings-info">
+                        <h3>Change Password</h3>
+                        <p>Update your login password. You must enter your current password to confirm.</p>
+                    </div>
+
+                    @if (session('password_success'))
+                        <div style="padding: 10px 14px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; color: #10b981; font-size: 13px; font-weight: 600;">
+                            ✅ {{ session('password_success') }}
+                        </div>
+                    @endif
+
+                    @if ($errors->has('current_password'))
+                        <div style="padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; color: #ef4444; font-size: 13px; font-weight: 600;">
+                            ⚠ {{ $errors->first('current_password') }}
+                        </div>
+                    @endif
+
+                    <form action="{{ route('settings.change-password') }}" method="POST">
+                        @csrf
+                        <div style="margin-bottom: 14px;">
+                            <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Current Password</label>
+                            <input type="password" name="current_password" required
+                                style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid {{ $errors->has('current_password') ? '#ef4444' : 'var(--border-color)' }}; border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 14px;">
+                            <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">New Password <span style="font-weight: 400; opacity: 0.6;">(min 8 chars)</span></label>
+                            <input type="password" name="password" required minlength="8"
+                                style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Confirm New Password</label>
+                            <input type="password" name="password_confirmation" required minlength="8"
+                                style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" class="btn-settings"
+                            style="background: rgba(59,130,246,0.05); border-color: rgba(59,130,246,0.3); color: #3b82f6; width: 100%;"
+                            onmouseover="this.style.background='#3b82f6'; this.style.color='white'"
+                            onmouseout="this.style.background='rgba(59,130,246,0.05)'; this.style.color='#3b82f6'">
+                            <i class="fas fa-key" style="margin-right: 6px;"></i> Update Password
+                        </button>
+                    </form>
+                </div>
+
                 <!-- Admin Only: User Management Card (Scroll to bottom) -->
                 @if (auth()->check() && auth()->user()->role === 'admin')
                     <div class="settings-card" style="border-left: 4px solid #f59e0b;">
@@ -352,6 +409,273 @@
                                 onmouseover="this.style.background='#ef4444'; this.style.color='white'"
                                 onmouseout="this.style.background='rgba(239, 68, 68, 0.05)'; this.style.color='#ef4444'">
                                 View Logs
+                            </a>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- ⏰ Working Hours Configuration (Feature #3) -->
+                @if (auth()->check() && auth()->user()->role === 'admin')
+                    <div class="settings-card" style="border-left: 4px solid #10b981;">
+                        <div class="settings-icon-box" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="settings-info">
+                            <h3>Working Hours</h3>
+                            <p>Set the official work start and end time. The dashboard shows an indicator when monitoring is outside working hours.</p>
+                        </div>
+                        @if (session('success') && str_contains(session('success'), 'Working hours'))
+                            <div style="padding: 10px 14px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; color: #10b981; font-size: 13px; font-weight: 600;">
+                                ✅ {{ session('success') }}
+                            </div>
+                        @endif
+                        <form action="{{ route('settings.working-hours') }}" method="POST">
+                            @csrf
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Work Start</label>
+                                    <input type="time" name="work_start" value="{{ $settings['work_start'] ?? '08:00' }}"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Work End</label>
+                                    <input type="time" name="work_end" value="{{ $settings['work_end'] ?? '18:00' }}"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-settings"
+                                style="background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.3); color: #10b981; width: 100%;"
+                                onmouseover="this.style.background='#10b981'; this.style.color='white'"
+                                onmouseout="this.style.background='rgba(16,185,129,0.05)'; this.style.color='#10b981'">
+                                <i class="fas fa-save" style="margin-right: 6px;"></i> Save Working Hours
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
+                <!-- ⚠️ Idle Time Threshold (Admin only) -->
+                @if (auth()->check() && auth()->user()->role === 'admin')
+                    <div class="settings-card" style="border-left: 4px solid #f59e0b;">
+                        <div class="settings-icon-box" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <div class="settings-info">
+                            <h3>Idle Time Threshold</h3>
+                            <p>Define how many minutes of keyboard/mouse inactivity before a workstation is marked as <strong style="color:#f59e0b;">Idle</strong>. The monitor client reads this value at startup.</p>
+                        </div>
+
+                        @if (session('idle_success'))
+                            <div style="padding: 10px 14px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; color: #f59e0b; font-size: 13px; font-weight: 600;">
+                                ✅ {{ session('idle_success') }}
+                            </div>
+                        @endif
+
+                        <form action="{{ route('settings.idle-threshold') }}" method="POST">
+                            @csrf
+                            <div style="margin-bottom: 16px;">
+                                <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Idle Threshold <span style="font-weight: 400; opacity: 0.6;">(minutes, 5–480)</span></label>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="number" name="idle_threshold_minutes"
+                                        value="{{ $settings['idle_threshold_minutes'] ?? 60 }}"
+                                        min="5" max="480" required
+                                        style="flex: 1; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif;">
+                                    <span style="font-size: 13px; color: var(--text-secondary); white-space: nowrap;">minutes</span>
+                                </div>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.7;">
+                                    Current: <strong style="color: #f59e0b;">{{ $settings['idle_threshold_minutes'] ?? 60 }} min</strong> &nbsp;·&nbsp; Default: 60 min (1 hour)
+                                </p>
+                            </div>
+                            <button type="submit" class="btn-settings"
+                                style="background: rgba(245,158,11,0.05); border-color: rgba(245,158,11,0.3); color: #f59e0b; width: 100%;"
+                                onmouseover="this.style.background='#f59e0b'; this.style.color='white'"
+                                onmouseout="this.style.background='rgba(245,158,11,0.05)'; this.style.color='#f59e0b'">
+                                <i class="fas fa-save" style="margin-right: 6px;"></i> Save Idle Threshold
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
+                <!-- 📧 Email / SMTP Configuration (Admin only) -->
+                @if (auth()->check() && auth()->user()->role === 'admin')
+                    <div class="settings-card" style="border-left: 4px solid #06b6d4;">
+                        <div class="settings-icon-box" style="background: rgba(6,182,212,0.1); color: #06b6d4;">
+                            <i class="fas fa-envelope-open-text"></i>
+                        </div>
+                        <div class="settings-info">
+                            <h3>Email Configuration</h3>
+                            <p>Connect an SMTP account to enable weekly reports, individual activity emails, and license alerts.</p>
+                        </div>
+
+                        {{-- Save success --}}
+                        @if (session('email_success'))
+                            <div style="padding: 10px 14px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 10px; color: #06b6d4; font-size: 13px; font-weight: 600;">
+                                ✅ {{ session('email_success') }}
+                            </div>
+                        @endif
+
+                        {{-- Test email success --}}
+                        @if (session('email_test_success'))
+                            <div style="padding: 10px 14px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; color: #10b981; font-size: 13px; font-weight: 600;">
+                                ✅ {{ session('email_test_success') }}
+                            </div>
+                        @endif
+
+                        {{-- Test email failure --}}
+                        @if (session('email_test_error'))
+                            <div style="padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; color: #ef4444; font-size: 13px; font-weight: 600;">
+                                ⚠ {{ session('email_test_error') }}
+                            </div>
+                        @endif
+
+                        <form action="{{ route('settings.email') }}" method="POST">
+                            @csrf
+
+                            {{-- Row 1: SMTP Host + Port (free input) --}}
+                            <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px; margin-bottom: 14px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">SMTP Server</label>
+                                    <input type="text" name="mail_host"
+                                        value="{{ $emailSettings['mail_host'] }}"
+                                        placeholder="smtp.gmail.com"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                        required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                                        Port
+                                        <span style="font-weight: 400; opacity: 0.5; font-size: 10px;">(any)</span>
+                                    </label>
+                                    <input type="number" name="mail_port"
+                                        value="{{ $emailSettings['mail_port'] }}"
+                                        placeholder="587"
+                                        min="1" max="65535"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                        required>
+                                </div>
+                            </div>
+                            {{-- Port hint --}}
+                            <p style="font-size: 11px; color: var(--text-secondary); margin: -8px 0 14px; opacity: 0.65;">
+                                Common: <strong>587</strong> (TLS/STARTTLS) &nbsp;·&nbsp; <strong>465</strong> (SSL) &nbsp;·&nbsp; <strong>25</strong> (plain) &nbsp;·&nbsp; Enter any custom port your provider uses
+                            </p>
+
+                            {{-- Row 2: Email Address --}}
+                            <div style="margin-bottom: 14px;">
+                                <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Email Address <span style="font-weight: 400; opacity: 0.6;">(SMTP login)</span></label>
+                                <input type="email" name="mail_username"
+                                    value="{{ $emailSettings['mail_username'] }}"
+                                    placeholder="yourname@gmail.com"
+                                    style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                    required>
+                            </div>
+
+                            {{-- Row 3: Password --}}
+                            <div style="margin-bottom: 14px;">
+                                <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                                    Password / App Password
+                                    <span style="font-weight: 400; opacity: 0.6; font-size: 10px;">&nbsp;(Gmail: use App Password, not your login password)</span>
+                                </label>
+                                <input type="password" name="mail_password"
+                                    value="{{ $emailSettings['mail_password'] }}"
+                                    placeholder="••••••••••••••••"
+                                    style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                    required>
+                            </div>
+
+                            {{-- Row 4: From Name + From Address --}}
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Display Name</label>
+                                    <input type="text" name="mail_from_name"
+                                        value="{{ $emailSettings['mail_from_name'] }}"
+                                        placeholder="ASCLAM Monitor"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                        required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">From Address</label>
+                                    <input type="email" name="mail_from_address"
+                                        value="{{ $emailSettings['mail_from_address'] }}"
+                                        placeholder="monitor@yourcompany.com"
+                                        style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                        required>
+                                </div>
+                            </div>
+
+                            {{-- Divider --}}
+                            <div style="border-top: 1px solid var(--border-color); margin: 4px 0 16px;"></div>
+
+                            {{-- Row 5: HR Report Recipient --}}
+                            <div style="margin-bottom: 6px;">
+                                <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                                    Organisation Weekly Report
+                                    <span style="font-weight: 400; opacity: 0.6;">(HR / Management email)</span>
+                                </label>
+                                <input type="email" name="hr_email"
+                                    value="{{ $emailSettings['hr_email'] }}"
+                                    placeholder="hr@yourcompany.com"
+                                    style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
+                                    required>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin-top: 5px; opacity: 0.65;">
+                                    This person receives the full organisation-wide weekly summary every Monday.
+                                </p>
+                            </div>
+
+                            {{-- Row 6: Team Leader (Contract Manager) report toggle --}}
+                            <div style="margin-bottom: 16px; padding: 12px 14px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px;">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                    <input type="checkbox" name="notify_team_leaders" value="1"
+                                        {{ ($emailSettings['notify_team_leaders'] ?? false) ? 'checked' : '' }}
+                                        style="margin-top: 3px; width: 15px; height: 15px; accent-color: #6366f1; flex-shrink: 0;">
+                                    <span>
+                                        <span style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">
+                                            Send team report to Contract Managers (Team Leaders)
+                                        </span>
+                                        <span style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+                                            When enabled, each Contract Manager automatically receives a weekly report
+                                            covering <strong>only their assigned team members</strong> — sent to the email
+                                            address stored in their account profile.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn-settings"
+                                style="background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.3); color: #06b6d4; width: 100%; margin-bottom: 10px;"
+                                onmouseover="this.style.background='#06b6d4'; this.style.color='white'"
+                                onmouseout="this.style.background='rgba(6,182,212,0.05)'; this.style.color='#06b6d4'">
+                                <i class="fas fa-save" style="margin-right: 6px;"></i> Save Email Settings
+                            </button>
+                        </form>
+
+                        {{-- Test Email — separate form --}}
+                        <form action="{{ route('settings.test-email') }}" method="POST" style="margin-top: 0;">
+                            @csrf
+                            <button type="submit" class="btn-settings"
+                                style="background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.3); color: #10b981; width: 100%;"
+                                onmouseover="this.style.background='#10b981'; this.style.color='white'"
+                                onmouseout="this.style.background='rgba(16,185,129,0.05)'; this.style.color='#10b981'">
+                                <i class="fas fa-paper-plane" style="margin-right: 6px;"></i> Send Test Email to {{ auth()->user()->email }}
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
+                <!-- 📋 Audit Trail Quick Link -->
+                @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                    <div class="settings-card" style="border-left: 4px solid #6366f1;">
+                        <div class="settings-icon-box" style="background: rgba(99,102,241,0.1); color: #6366f1;">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="settings-info">
+                            <h3>Audit Trail</h3>
+                            <p>View a full log of all admin actions — license assignments, revocations, user changes, and more.</p>
+                        </div>
+                        <div class="settings-action">
+                            <a href="{{ route('audit.trail') }}" class="btn-settings"
+                                style="background: rgba(99,102,241,0.05); border-color: rgba(99,102,241,0.3); color: #6366f1;"
+                                onmouseover="this.style.background='#6366f1'; this.style.color='white'"
+                                onmouseout="this.style.background='rgba(99,102,241,0.05)'; this.style.color='#6366f1'">
+                                View Audit Log
                             </a>
                         </div>
                     </div>

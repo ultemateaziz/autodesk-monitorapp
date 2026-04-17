@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\WeeklyTeamReport;
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Http\Controllers\SettingsController;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -22,6 +23,10 @@ class SendWeeklyReport extends Command
             $this->error('HR_EMAIL is not set in .env — aborting.');
             return;
         }
+
+        // Read the "notify team leaders" toggle from settings
+        $appSettings          = SettingsController::getAllSettings();
+        $notifyTeamLeaders    = $appSettings['notify_team_leaders'] ?? false;
 
         $weekEnd   = Carbon::now()->endOfDay();
         $weekStart = Carbon::now()->subDays(6)->startOfDay();
@@ -82,11 +87,14 @@ class SendWeeklyReport extends Command
                 ];
             });
 
+            // Pass team leader email only if the toggle is on; null otherwise (no CC)
+            $leaderEmailForReport = $notifyTeamLeaders ? $leader->email : null;
+
             // Send the email
             try {
                 Mail::send(new WeeklyTeamReport(
                     teamLeaderName:  $leader->name,
-                    teamLeaderEmail: $leader->email,
+                    teamLeaderEmail: $leaderEmailForReport,
                     department:      $department,
                     weekLabel:       $weekLabel,
                     weekStart:       $weekStart->toDateString(),
@@ -96,7 +104,8 @@ class SendWeeklyReport extends Command
                     hrEmail:         $hrEmail,
                 ));
 
-                $this->info("✅ Report sent for {$department} (Leader: {$leader->name}) → HR: {$hrEmail}, CC: {$leader->email}");
+                $ccNote = $notifyTeamLeaders ? ", CC: {$leader->email}" : ' (Team Leader not notified)';
+                $this->info("✅ Report sent for {$department} (Leader: {$leader->name}) → HR: {$hrEmail}{$ccNote}");
             } catch (\Exception $e) {
                 $this->error("❌ Failed to send for {$department}: " . $e->getMessage());
             }

@@ -38,7 +38,7 @@
         </div>
         <h2 style="color:#f87171;font-size:22px;font-weight:800;margin-bottom:8px;">Subscription Expired</h2>
         <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin-bottom:6px;">
-            Your ArchEng Pro subscription has expired.
+            Your ASCLAM subscription has expired.
         </p>
         @if ($expires)
         <p style="color:#64748b;font-size:13px;margin-bottom:20px;">

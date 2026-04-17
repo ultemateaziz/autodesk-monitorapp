@@ -10,7 +10,7 @@ if %errorLevel% == 0 (
 )
 
 echo ---------------------------------------------------
-echo REMOVING AUTODESK MONITOR...
+echo REMOVING ASCLAM MONITOR...
 echo ---------------------------------------------------
 
 :: 1. Force kill the running process
@@ -22,7 +22,17 @@ taskkill /F /IM wscript.exe >nul 2>&1
 echo Removing Auto-Start Schedule...
 schtasks /delete /tn "AutodeskMonitorAgent" /f >nul 2>&1
 
-:: 3. Delete the Files
+:: 3. Remove hidden and system attributes so folder can be deleted
+attrib -h -s "C:\AutodeskMonitor\hazemonitor.exe" >nul 2>&1
+attrib -h -s "C:\AutodeskMonitor\start_silent.vbs" >nul 2>&1
+attrib -h -s "C:\AutodeskMonitor" >nul 2>&1
+
+:: 4. Restore full permissions so rmdir can delete it
+icacls "C:\AutodeskMonitor" /grant:r "Everyone:(OI)(CI)F" /inheritance:e >nul 2>&1
+icacls "C:\AutodeskMonitor" /remove:d "Users" >nul 2>&1
+icacls "C:\AutodeskMonitor" /remove:d "Everyone" >nul 2>&1
+
+:: 5. Delete the Files
 echo Deleting files in C:\AutodeskMonitor...
 rmdir /S /Q "C:\AutodeskMonitor"
 

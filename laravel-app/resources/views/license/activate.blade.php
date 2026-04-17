@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>License Activation — ArchEng Pro</title>
+    <title>License Activation — ASCLAM</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -239,7 +239,7 @@
 
     <div class="logo">
         <div class="logo-icon">🏗</div>
-        <h1>ArchEng Pro</h1>
+        <h1>ASCLAM</h1>
         <p>Autodesk Software Monitor</p>
     </div>
 

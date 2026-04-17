@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | User Management</title>
+    <title>ASCLAM | User Management</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -194,7 +194,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
         <ul class="nav-menu">
             <li class="nav-section-title">Main Monitoring</li>
@@ -276,6 +276,14 @@
                     <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
 
         <div class="sidebar-footer">

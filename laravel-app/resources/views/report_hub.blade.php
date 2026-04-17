@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | Report Hub</title>
+    <title>ASCLAM | Report Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -223,47 +223,54 @@
     <aside class="sidebar">
         <div class="logo-container">
             <div class="logo-icon"><i class="fas fa-compass-drafting"></i></div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
         <ul class="nav-menu">
             <li class="nav-section-title">Main Monitoring</li>
             <li class="nav-item">
                 <a href="{{ route('dashboard') }}" class="nav-link">
-                    <i class="fas fa-th-large"></i><span>Dashboard</span>
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a href="{{ route('leaderboard') }}" class="nav-link">
-                    <i class="fas fa-trophy"></i><span>Leaderboard</span>
+                    <i class="fas fa-trophy"></i>
+                    <span>Leaderboard</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a href="{{ route('users') }}" class="nav-link">
-                    <i class="fas fa-users"></i><span>Users</span>
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
                 </a>
             </li>
 
             <li class="nav-section-title">Analytics & Reports</li>
             <li class="nav-item">
                 <a href="{{ route('license.audit') }}" class="nav-link">
-                    <i class="fas fa-user-slash"></i><span>Inactive Users</span>
+                    <i class="fas fa-user-slash"></i>
+                    <span>Inactive Users</span>
                 </a>
             </li>
             @if (auth()->user()->role !== 'team_leader')
                 <li class="nav-item">
                     <a href="{{ route('license.optimization') }}" class="nav-link">
-                        <i class="fas fa-lightbulb"></i><span>License Optimization</span>
+                        <i class="fas fa-lightbulb"></i>
+                        <span>License Optimization</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ route('department.efficiency') }}" class="nav-link">
-                        <i class="fas fa-chart-pie"></i><span>Efficiency Benchmark</span>
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Efficiency Benchmark</span>
                     </a>
                 </li>
             @endif
             <li class="nav-item">
                 <a href="{{ route('report.hub') }}" class="nav-link active">
-                    <i class="fas fa-file-pdf"></i><span>Export Report</span>
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Export Report</span>
                 </a>
             </li>
 
@@ -271,12 +278,14 @@
                 <li class="nav-section-title">Infrastructure</li>
                 <li class="nav-item">
                     <a href="{{ route('machine.inventory') }}" class="nav-link">
-                        <i class="fas fa-desktop"></i><span>Machine Inventory</span>
+                        <i class="fas fa-desktop"></i>
+                        <span>Machine Inventory</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ route('ghost.machines') }}" class="nav-link">
-                        <i class="fas fa-ghost"></i><span>Ghost Machines</span>
+                        <i class="fas fa-ghost"></i>
+                        <span>Ghost Machines</span>
                     </a>
                 </li>
             @endif
@@ -285,15 +294,25 @@
             @if (auth()->check() && auth()->user()->role === 'admin')
                 <li class="nav-item">
                     <a href="{{ route('user-management') }}" class="nav-link">
-                        <i class="fas fa-user-shield"></i><span>User Management</span>
+                        <i class="fas fa-user-shield"></i>
+                        <span>User Management</span>
                     </a>
                 </li>
             @endif
             <li class="nav-item">
                 <a href="{{ route('settings') }}" class="nav-link">
-                    <i class="fas fa-cog"></i><span>Settings</span>
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
         <div class="sidebar-footer">
             <div class="user-profile-sidebar">
@@ -316,7 +335,8 @@
                 @csrf
                 <button type="submit"
                     style="width:100%;padding:8px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;">
-                    <i class="fas fa-sign-out-alt"></i><span>Log Out</span>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Log Out</span>
                 </button>
             </form>
         </div>

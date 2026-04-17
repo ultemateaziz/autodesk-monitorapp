@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | User Management</title>
+    <title>ASCLAM | User Management</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -105,7 +105,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
 
         <ul class="nav-menu">
@@ -188,6 +188,14 @@
                     <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
 
         <div class="sidebar-footer">
@@ -329,6 +337,18 @@
                     <p class="metric-desc">Pings in last 60s</p>
                 </div>
 
+                <!-- Card 1b: Idle Now -->
+                <div class="metric-card card-floating" style="animation-delay: 0.1s; border-left: 3px solid rgba(245,158,11,0.5);">
+                    <div class="metric-header">
+                        <div class="metric-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" style="color:#f59e0b;">{{ count(array_filter($users, fn($u) => $u->is_idle)) }}</div>
+                    <div class="metric-label">Idle Now</div>
+                    <p class="metric-desc">No input &gt; 1 hour</p>
+                </div>
+
                 <!-- Card 2: Total Tracked -->
                 <div class="metric-card card-floating" style="animation-delay: 0.2s;">
                     <div class="metric-header">
@@ -414,7 +434,15 @@
                                 <td><span class="activity-time"
                                         style="font-weight: 600; font-size: 13px;">{{ $user->total_time_today }}</span>
                                 </td>
-                                <td><span class="machine-id">{{ $user->machine }}</span></td>
+                                <td>
+                                    <span class="machine-id">{{ $user->machine }}</span>
+                                    @if ($user->ip_address)
+                                        <br><span style="font-size: 11px; color: var(--text-muted, #888); font-family: 'JetBrains Mono', monospace;">
+                                            <i class="fas fa-network-wired" style="font-size: 10px;"></i>
+                                            {{ $user->ip_address }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td>
                                     @php
                                         $revokedList = $revokedMap->get($user->name, []);
@@ -486,10 +514,16 @@
                                 </td>
                                 <td>
                                     <div class="status-cell">
-                                        <div
-                                            class="status-dot {{ $user->is_online ? 'status-online' : 'status-offline' }}">
-                                        </div>
-                                        <span>{{ $user->is_online ? 'Online' : 'Offline' }}</span>
+                                        @if ($user->is_online)
+                                            <div class="status-dot status-online"></div>
+                                            <span>Online</span>
+                                        @elseif ($user->is_idle)
+                                            <div class="status-dot" style="background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.2);animation:idlePulse 2s ease-in-out infinite;"></div>
+                                            <span style="color:#f59e0b;">⚠ Idle</span>
+                                        @else
+                                            <div class="status-dot status-offline"></div>
+                                            <span>Offline</span>
+                                        @endif
                                     </div>
                                     <div style="font-size: 10px; color: var(--text-muted); opacity: 0.8;">
                                         {{ $user->last_seen }}</div>

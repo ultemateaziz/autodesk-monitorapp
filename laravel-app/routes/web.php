@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
@@ -8,6 +9,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LicenseActivationController;
 use Illuminate\Support\Facades\Route;
+
+// Public API for monitor clients
+Route::get('/api/idle-threshold', [SettingsController::class, 'idleThresholdApi']);
 
 // Auth Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -24,6 +28,12 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', \App\Http\Middleware\CheckLicenseActivated::class])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::post('/settings/working-hours', [SettingsController::class, 'saveWorkingHours'])->name('settings.working-hours');
+    Route::post('/settings/idle-threshold', [SettingsController::class, 'saveIdleThreshold'])->name('settings.idle-threshold');
+    Route::post('/settings/change-password', [SettingsController::class, 'changePassword'])->name('settings.change-password');
+    Route::post('/settings/email', [SettingsController::class, 'saveEmailSettings'])->name('settings.email');
+    Route::post('/settings/test-email', [SettingsController::class, 'testEmail'])->name('settings.test-email');
+    Route::get('/audit-trail', [AuditController::class, 'index'])->name('audit.trail');
     Route::get('/users', [DashboardController::class, 'users'])->name('users');
     Route::get('/export-csv', [DashboardController::class, 'exportCsv'])->name('dashboard.export');
     Route::get('/license-audit', [DashboardController::class, 'licenseAudit'])->name('license.audit');

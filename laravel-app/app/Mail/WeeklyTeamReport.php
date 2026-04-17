@@ -15,28 +15,34 @@ class WeeklyTeamReport extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public string     $teamLeaderName,
-        public string     $teamLeaderEmail,
-        public string     $department,
-        public string     $weekLabel,       // e.g. "17 Mar – 23 Mar 2026"
-        public string     $weekStart,       // e.g. "2026-03-17"
-        public string     $weekEnd,         // e.g. "2026-03-23"
-        public Collection $userStats,       // per-user: name, email, hours, top_app, days_active
-        public int        $totalTeamHours,
-        public string     $hrEmail,
+        public string      $teamLeaderName,
+        public ?string     $teamLeaderEmail,  // null = do not CC the team leader
+        public string      $department,
+        public string      $weekLabel,
+        public string      $weekStart,
+        public string      $weekEnd,
+        public Collection  $userStats,
+        public int         $totalTeamHours,
+        public string      $hrEmail,
     ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(
+        $envelope = new Envelope(
             from: new Address(
-                config('mail.from.address', 'system@archengpro.com'),
-                config('mail.from.name',    'ArchEng Pro Monitor')
+                config('mail.from.address', 'system@asclam.com'),
+                config('mail.from.name',    'ASCLAM Monitor')
             ),
-            to: [$this->hrEmail],
-            cc: [$this->teamLeaderEmail],
+            to:      [$this->hrEmail],
             subject: "Weekly Performance Report — {$this->department} | {$this->weekLabel}",
         );
+
+        // Only CC the team leader if the admin has enabled the toggle
+        if ($this->teamLeaderEmail) {
+            $envelope->cc([$this->teamLeaderEmail]);
+        }
+
+        return $envelope;
     }
 
     public function content(): Content

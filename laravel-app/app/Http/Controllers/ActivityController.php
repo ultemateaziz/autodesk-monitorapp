@@ -24,6 +24,7 @@ class ActivityController extends Controller
             'user_name' => $validated['user_name'],
             'application' => $validated['application'],
             'status' => $validated['status'],
+            'ip_address' => $request->ip(),
             'recorded_at' => $validated['timestamp'], // Map JS timestamp to DB column
         ]);
 

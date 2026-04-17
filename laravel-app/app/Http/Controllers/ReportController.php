@@ -227,25 +227,38 @@ class ReportController extends Controller
 
     private function mapAppName(string $raw): string
     {
+        // Preserve version year (e.g. "AutoCAD 2025") before lowercasing
+        $version = '';
+        if (preg_match('/(20\d{2})/', $raw, $matches)) {
+            $version = ' ' . $matches[1];
+        }
+
         $map = [
-            'acad'       => 'AutoCAD',
-            'autocad'    => 'AutoCAD',
-            'revit'      => 'Revit',
-            'navis'      => 'Navisworks',
-            'civil'      => 'Civil 3D',
-            'plant'      => 'Plant 3D',
-            '3dsmax'     => '3ds Max',
-            '3ds max'    => '3ds Max',
-            'inventor'   => 'Inventor',
-            'fusion'     => 'Fusion 360',
-            'infraworks' => 'InfraWorks',
-            'recap'      => 'ReCap',
-            'vault'      => 'Vault',
+            'acad'             => 'AutoCAD',
+            'autocad'          => 'AutoCAD',
+            'revit'            => 'Revit',
+            'navis'            => 'Navisworks',
+            'roamer'           => 'Navisworks',
+            'civil'            => 'Civil 3D',
+            'plant'            => 'Plant 3D',
+            '3dsmax'           => '3ds Max',
+            '3ds max'          => '3ds Max',
+            'inventor'         => 'Inventor',
+            'fusion'           => 'Fusion 360',
+            'infraworks'       => 'InfraWorks',
+            'recap'            => 'ReCap Pro',
+            'desktopconnector' => 'Autodesk Docs',
+            'formit'           => 'FormIt',
+            'robot'            => 'Robot Structural Analysis',
+            'sbd'              => 'Structural Bridge Design',
+            'estmep'           => 'Fabrication ESTmep',
+            'camduct'          => 'Fabrication CAMduct',
+            'vault'            => 'Vault',
         ];
         $lower = strtolower($raw);
         foreach ($map as $key => $label) {
-            if (str_contains($lower, $key)) return $label;
+            if (str_contains($lower, $key)) return $label . $version;
         }
-        return ucwords(strtolower($raw));
+        return ucwords(strtolower($raw)) . $version;
     }
 }

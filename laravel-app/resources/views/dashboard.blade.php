@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | Application Usage Dashboard</title>
+    <title>ASCLAM | Application Usage Dashboard</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -68,7 +68,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
 
         <ul class="nav-menu">
@@ -151,6 +151,14 @@
                     <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
 
         <div class="sidebar-footer">
@@ -500,6 +508,94 @@
         // Charts Initialization
         let productivityChart, marketChart;
 
+        const currentPeriod = '{{ $period }}';
+
+        // Y-axis config + tooltip unit based on selected period
+        const isWeeklyOrMonthly = currentPeriod === 'weekly' || currentPeriod === 'monthly';
+        const isHourly          = currentPeriod === 'hourly';
+
+        // Tooltip formatter
+        function formatActivityLabel(context) {
+            const rawVal = context.parsed.y;
+            if (isWeeklyOrMonthly) {
+                // rawVal = total minutes of activity in that day bucket
+                const h = Math.floor(rawVal / 60);
+                const m = Math.floor(rawVal % 60);
+                let timeStr;
+                if (h > 0) {
+                    timeStr = h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+                } else {
+                    timeStr = m + 'm';
+                }
+                return context.dataset.label + ': ' + timeStr + ' / day';
+            } else {
+                // rawVal = minutes per hour (daily) or per 5-min slot (hourly)
+                const totalSec = Math.round(rawVal * 60);
+                const h = Math.floor(totalSec / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = totalSec % 60;
+                let timeStr;
+                if (h > 0) {
+                    timeStr = h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+                } else if (s > 0) {
+                    timeStr = m + 'm ' + s + 's';
+                } else {
+                    timeStr = m + 'm';
+                }
+                const unit = isHourly ? ' / 5min' : ' / hr';
+                return context.dataset.label + ': ' + timeStr + unit;
+            }
+        }
+
+        // Y-axis scale config
+        function getYAxisConfig(textColor, gridColor) {
+            const base = {
+                grid: { color: gridColor, borderDash: [5, 5] },
+                ticks: { color: textColor, font: { family: 'Outfit', size: 10 } },
+                min: 0
+            };
+            if (isWeeklyOrMonthly) {
+                return {
+                    ...base,
+                    suggestedMax: 480,
+                    ticks: {
+                        ...base.ticks,
+                        stepSize: 60,
+                        callback: function(value) {
+                            const h = Math.floor(value / 60);
+                            const m = value % 60;
+                            if (h === 0) return m + 'm';
+                            if (m === 0) return h + 'h';
+                            return h + 'h ' + m + 'm';
+                        }
+                    }
+                };
+            } else if (isHourly) {
+                return {
+                    ...base,
+                    suggestedMax: 5,
+                    ticks: {
+                        ...base.ticks,
+                        stepSize: 1,
+                        callback: function(value) { return value + 'm'; }
+                    }
+                };
+            } else {
+                // daily
+                return {
+                    ...base,
+                    max: 60,
+                    ticks: {
+                        ...base.ticks,
+                        stepSize: 5,
+                        callback: function(value) {
+                            return value === 60 ? '1h' : value + 'm';
+                        }
+                    }
+                };
+            }
+        }
+
         function initCharts() {
             const ctxProductivity = document.getElementById('productivityChart').getContext('2d');
             const ctxMarket = document.getElementById('marketChart').getContext('2d');
@@ -545,19 +641,7 @@
                             usePointStyle: true,
                             callbacks: {
                                 label: function(context) {
-                                    const totalSec = Math.round(context.parsed.y * 60);
-                                    const h = Math.floor(totalSec / 3600);
-                                    const m = Math.floor((totalSec % 3600) / 60);
-                                    const s = totalSec % 60;
-                                    let timeStr;
-                                    if (h > 0) {
-                                        timeStr = h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
-                                    } else if (s > 0) {
-                                        timeStr = m + 'm ' + s + 's';
-                                    } else {
-                                        timeStr = m + 'm';
-                                    }
-                                    return context.dataset.label + ': ' + timeStr + '/hr';
+                                    return formatActivityLabel(context);
                                 }
                             }
                         }
@@ -577,34 +661,20 @@
                     },
                     scales: {
                         x: {
-                            grid: {
-                                display: false
-                            },
+                            grid: { display: false },
                             ticks: {
                                 color: textColor,
-                                font: {
-                                    family: 'Outfit'
-                                }
+                                font: { family: 'Outfit' }
                             }
                         },
                         y: {
-                            grid: {
-                                color: gridColor,
-                                borderDash: [5, 5]
-                            },
-                            ticks: {
+                            ...getYAxisConfig(textColor, gridColor),
+                            title: {
+                                display: true,
+                                text: isWeeklyOrMonthly ? '⏱ Hours / Day' : (isHourly ? '⏱ Min / 5min Slot' : '⏱ Min / Hour'),
                                 color: textColor,
-                                font: {
-                                    family: 'Outfit',
-                                    size: 10
-                                },
-                                stepSize: 5,
-                                callback: function(value) {
-                                    return value === 60 ? '60m' : value + 'm';
-                                }
-                            },
-                            min: 0,
-                            max: 60
+                                font: { family: 'Outfit', size: 10, weight: '600' }
+                            }
                         }
                     }
                 }
@@ -728,6 +798,28 @@
 
         // Init on load
         window.addEventListener('DOMContentLoaded', initCharts);
+
+        // ─── FEATURE 1: LIVE REAL-TIME AUTO REFRESH ──────────────────────────────
+        (function() {
+            const REFRESH_EVERY = 30;
+            let countdown = REFRESH_EVERY;
+            const topbarActions = document.querySelector('.topbar-actions');
+            if (topbarActions) {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-secondary);padding:6px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:20px;';
+                badge.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;animation:livePulse 1.2s ease-in-out infinite;flex-shrink:0;"></span><span>Live · <span id="liveCountdown">30</span>s</span>';
+                topbarActions.insertBefore(badge, topbarActions.firstChild);
+                const s = document.createElement('style');
+                s.textContent = '@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.4)}}';
+                document.head.appendChild(s);
+            }
+            setInterval(() => {
+                countdown--;
+                const el = document.getElementById('liveCountdown');
+                if (el) el.textContent = countdown;
+                if (countdown <= 0) window.location.reload();
+            }, 1000);
+        })();
 
         // Notification Toggle
         const notifBtn = document.getElementById('notifBtn');

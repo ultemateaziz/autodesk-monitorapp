@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArchEng Pro | Department Efficiency Benchmark</title>
+    <title>ASCLAM | Department Efficiency Benchmark</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -166,7 +166,7 @@
     <aside class="sidebar">
         <div class="logo-container">
             <div class="logo-icon"><i class="fas fa-compass-drafting"></i></div>
-            <span class="logo-text">ArchEng Pro</span>
+            <span class="logo-text">ASCLAM</span>
         </div>
 
         <ul class="nav-menu">
@@ -236,9 +236,18 @@
             @endif
             <li class="nav-item">
                 <a href="{{ route('settings') }}" class="nav-link">
-                    <i class="fas fa-cog"></i><span>Settings</span>
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
             </li>
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'management']))
+                <li class="nav-item">
+                    <a href="{{ route('audit.trail') }}" class="nav-link">
+                        <i class="fas fa-history"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+            @endif
         </ul>
 
         <div class="sidebar-footer">

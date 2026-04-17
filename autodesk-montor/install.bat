@@ -13,21 +13,20 @@ if %errorLevel% == 0 (
 )
 
 echo ---------------------------------------------------
-echo Installing Autodesk Monitor (Silent & Protected)...
+echo Installing ASCLAM Monitor (Silent and Protected)...
 echo ---------------------------------------------------
 
 :: Kill any existing process first
 taskkill /F /IM hazemonitor.exe >nul 2>&1
 
-
-:: 1. Create a Folder in C: drive (Hidden from casual view)
+:: 1. Create a Folder in C: drive
 if not exist "C:\AutodeskMonitor" mkdir "C:\AutodeskMonitor"
 
-:: 2. Copy the files (Now it will find them correctly!)
-echo Copying monitor.exe...
+:: 2. Copy the files
+echo Copying hazemonitor.exe...
 copy /Y "hazemonitor.exe" "C:\AutodeskMonitor\"
 if %errorlevel% neq 0 (
-    echo ERROR: Could not find monitor.exe! Make sure it is in the same folder as this script.
+    echo ERROR: Could not find hazemonitor.exe! Make sure it is in the same folder as this script.
     pause
     exit
 )
@@ -35,13 +34,36 @@ if %errorlevel% neq 0 (
 echo Copying start_silent.vbs...
 copy /Y "start_silent.vbs" "C:\AutodeskMonitor\"
 
-:: 3. Create the Windows Scheduled Task
-schtasks /create /tn "AutodeskMonitorAgent" /tr "wscript.exe \"C:\AutodeskMonitor\start_silent.vbs\"" /sc onlogon /rl highest /f
+:: 3. LOCK THE FOLDER — Remove all existing permissions and grant SYSTEM only
+echo Locking folder permissions...
+
+:: Remove inherited permissions and strip all access from everyone
+icacls "C:\AutodeskMonitor" /inheritance:r >nul 2>&1
+
+:: Grant SYSTEM full control (so the task runs correctly)
+icacls "C:\AutodeskMonitor" /grant:r "SYSTEM:(OI)(CI)F" >nul 2>&1
+
+:: Grant Administrators ownership only (so uninstall works) but no read/copy
+icacls "C:\AutodeskMonitor" /grant:r "Administrators:(OI)(CI)F" >nul 2>&1
+
+:: Explicitly DENY all regular users from reading or copying files
+icacls "C:\AutodeskMonitor" /deny "Users:(OI)(CI)(RX,R,RD,RA,REA,RC)" >nul 2>&1
+icacls "C:\AutodeskMonitor" /deny "Everyone:(OI)(CI)(RX,R,RD,RA,REA,RC)" >nul 2>&1
+
+:: 4. Hide the folder — invisible in File Explorer and CMD dir listing
+attrib +h +s "C:\AutodeskMonitor" >nul 2>&1
+attrib +h +s "C:\AutodeskMonitor\hazemonitor.exe" >nul 2>&1
+attrib +h +s "C:\AutodeskMonitor\start_silent.vbs" >nul 2>&1
+
+:: 5. Create the Windows Scheduled Task (runs as SYSTEM — bypasses user restrictions)
+schtasks /create /tn "AutodeskMonitorAgent" /tr "wscript.exe \"C:\AutodeskMonitor\start_silent.vbs\"" /sc onlogon /ru SYSTEM /rl highest /f >nul 2>&1
 
 echo.
 echo ---------------------------------------------------
-echo SUCCESS! The monitor is installed.
-echo It will start automatically next time you restart.
+echo SUCCESS! The monitor is installed and protected.
+echo - Folder is hidden from File Explorer
+echo - Regular users cannot open, copy or read it
+echo - It will start automatically on every login
 echo ---------------------------------------------------
 echo Starting it now for the first time...
 wscript "C:\AutodeskMonitor\start_silent.vbs"

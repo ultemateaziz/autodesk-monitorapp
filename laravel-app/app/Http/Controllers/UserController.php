@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -97,6 +98,9 @@ class UserController extends Controller
             }
         }
 
+        AuditLog::record($request, 'user_created', $user->name,
+            'Created system user: ' . $user->name . ' (' . $user->email . ') with role: ' . $user->role);
+
         return redirect()->back()->with('success', 'User created successfully.');
     }
 
@@ -143,6 +147,9 @@ class UserController extends Controller
             \App\Models\MonitorAssignment::where('leader_id', $user->id)->delete();
         }
 
+        AuditLog::record($request, 'user_updated', $user->name,
+            'Updated system user: ' . $user->name . ' — role: ' . $user->role . ', dept: ' . ($user->department ?? 'None'));
+
         return redirect()->back()->with('success', 'User updated successfully.');
     }
 
@@ -156,6 +163,9 @@ class UserController extends Controller
         if (auth()->id() === $user->id) {
             return redirect()->back()->with('error', 'You cannot delete yourself.');
         }
+
+        AuditLog::record($request, 'user_deleted', $user->name,
+            'Deleted system user: ' . $user->name . ' (' . $user->email . ')');
 
         $user->delete();
 

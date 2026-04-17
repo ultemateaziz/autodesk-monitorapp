@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AuditLog;
 use App\Models\UserLicense;
 use App\Models\DismissedNotification;
 use App\Models\UserProfile;
@@ -272,7 +273,11 @@ class DashboardController extends Controller
         }
         $logs = $query->get();
         $totalLogsInRange = $logs->count();
-        $totalHours = round(($totalLogsInRange * 3) / 3600, 2);
+        $totalSeconds_summary = $totalLogsInRange * 3;
+        $totalHours = round($totalSeconds_summary / 3600, 2);
+        $totalHours_h = floor($totalSeconds_summary / 3600);
+        $totalHours_m = floor(($totalSeconds_summary % 3600) / 60);
+        $totalFormattedTime = $totalHours_h > 0 ? "{$totalHours_h}h {$totalHours_m}m" : "{$totalHours_m}m";
         $totalRegisteredUsers = ActivityLog::whereBetween('recorded_at', [$from, $to]);
         if ($authorizedUsernames !== null) {
             $totalRegisteredUsers->whereIn('user_name', $authorizedUsernames);
@@ -313,23 +318,23 @@ class DashboardController extends Controller
             "Expires"             => "0"
         ];
 
-        $callback = function() use ($logs, $totalRegisteredUsers, $totalHours, $totalAppsTracted, $startDate, $endDate, $userWiseSummary) {
+        $callback = function() use ($logs, $totalRegisteredUsers, $totalFormattedTime, $totalAppsTracted, $startDate, $endDate, $userWiseSummary) {
             $file = fopen('php://output', 'w');
-            
+
             // --- Summary Section ---
             fputcsv($file, ["AUTODESK MONITOR - ORGANIZATION PERFORMANCE REPORT"]);
             fputcsv($file, ["Report Period:", "$startDate to $endDate"]);
             fputcsv($file, []); // Empty line
             fputcsv($file, ["SUMMARY ANALYTICS"]);
             fputcsv($file, ["Total Users Active", $totalRegisteredUsers]);
-            fputcsv($file, ["Total Productivity Time", $totalHours . " Hours"]);
+            fputcsv($file, ["Total Productivity Time", $totalFormattedTime]);
             fputcsv($file, ["Unique Applications Tracked", $totalAppsTracted]);
             fputcsv($file, []); // Empty line
             fputcsv($file, []); // Empty line
 
             // --- User Summary Section ---
             fputcsv($file, ["USER-WISE USAGE SUMMARY (GROUPED BY PRODUCT)"]);
-            fputcsv($file, ["User Name", "Team", "Machine", "Application", "Total Heartbeats", "Total Time (Minutes)", "Total Time (Formatted)"]);
+            fputcsv($file, ["User Name", "Team", "Machine", "Application", "Usage Time"]);
 
             foreach ($userWiseSummary as $item) {
                 $totalSeconds = $item['count'] * 3;
@@ -340,15 +345,13 @@ class DashboardController extends Controller
                 $profile = UserProfile::where('user_name', $item['user'])->first();
                 $dept = $profile ? $profile->department : 'Unassigned';
                 $nameForExport = $profile && $profile->display_name ? $profile->display_name . ' (' . $item['user'] . ')' : $item['user'];
-                
+
                 fputcsv($file, [
                     $nameForExport,
                     $dept,
                     $item['machine'],
                     $item['app'],
-                    $item['count'],
-                    round($totalSeconds / 60, 1),
-                    $formattedTime
+                    $formattedTime,
                 ]);
             }
             fputcsv($file, []); // Empty line
@@ -427,7 +430,7 @@ class DashboardController extends Controller
         // ── Bulk-fetch everything upfront (eliminates N+1 queries) ──
 
         // 1. Latest log per user — one query, grouped in PHP
-        $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'recorded_at')
+        $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'ip_address', 'recorded_at')
             ->whereIn('user_name', $usernames)
             ->orderBy('recorded_at', 'desc')
             ->get()
@@ -467,15 +470,22 @@ class DashboardController extends Controller
             $displayName = $profile ? $profile->display_name : null;
             $email       = $profile ? $profile->email : null;
 
+            $lastStatus  = $lastLog ? $lastLog->status : null;
+            $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
+            $isOnline    = $lastSeenSec < 60 && $lastStatus === 'Active';
+            $isIdle      = $lastSeenSec < 120 && $lastStatus === 'Idle';
+
             $users[] = (object)[
                 'name'             => $name,
                 'display_name'     => $displayName,
                 'email'            => $email,
                 'last_app'         => $this->mapApplicationName($lastLog ? $lastLog->application : 'N/A'),
                 'last_seen'        => $lastLog ? $lastLog->recorded_at->diffForHumans() : 'Never',
-                'is_online'        => $lastLog && $lastLog->recorded_at->diffInSeconds(now()) < 60,
+                'is_online'        => $isOnline,
+                'is_idle'          => $isIdle,
                 'total_time_today' => "{$h}h {$m}m",
                 'machine'          => $lastLog ? $lastLog->machine_name : 'Unknown',
+                'ip_address'       => $lastLog ? $lastLog->ip_address : null,
                 'used_software'    => $allUsedSoftware->get($name, []),
                 'department'       => $department
             ];
@@ -531,6 +541,9 @@ class DashboardController extends Controller
             'assigned_date' => now()->toDateString(),
         ]);
 
+        AuditLog::record($request, 'license_assigned', $validated['user_name'],
+            'Assigned ' . $validated['software_name'] . ' license to ' . $validated['user_name']);
+
         return redirect()->back()->with('success', $validated['software_name'] . ' assigned to ' . $validated['user_name']);
     }
 
@@ -544,6 +557,9 @@ class DashboardController extends Controller
         UserLicense::where('user_name', $validated['user_name'])
             ->where('software_name', $validated['software_name'])
             ->delete();
+
+        AuditLog::record($request, 'license_removed', $validated['user_name'],
+            'Removed ' . $validated['software_name'] . ' license from ' . $validated['user_name']);
 
         return redirect()->back()->with('success', $validated['software_name'] . ' removed from ' . $validated['user_name']);
     }
@@ -566,6 +582,9 @@ class DashboardController extends Controller
             ]
         );
 
+        AuditLog::record($request, 'software_suspended', $validated['user_name'],
+            'Suspended ' . $validated['software_name'] . ' access for ' . $validated['user_name']);
+
         return redirect()->back()->with('success', $validated['software_name'] . ' suspended for ' . $validated['user_name'] . '. Can be restored anytime.');
     }
 
@@ -587,6 +606,9 @@ class DashboardController extends Controller
             ]
         );
 
+        AuditLog::record($request, 'software_permanent_removal', $validated['user_name'],
+            'Permanently removed ' . $validated['software_name'] . ' from ' . $validated['user_name']);
+
         return redirect()->back()->with('success', $validated['software_name'] . ' permanently removed from ' . $validated['user_name'] . '. Monitoring stopped.');
     }
 
@@ -600,6 +622,9 @@ class DashboardController extends Controller
         RevokedSoftware::where('user_name', $validated['user_name'])
             ->where('software_name', $validated['software_name'])
             ->delete();
+
+        AuditLog::record($request, 'software_restored', $validated['user_name'],
+            'Restored ' . $validated['software_name'] . ' access for ' . $validated['user_name']);
 
         return redirect()->back()->with('success', $validated['software_name'] . ' access restored for ' . $validated['user_name']);
     }
