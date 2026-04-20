@@ -334,7 +334,7 @@
                     </div>
                     <div class="metric-value">{{ count(array_filter($users, fn($u) => $u->is_online)) }}</div>
                     <div class="metric-label">Active Now</div>
-                    <p class="metric-desc">Pings in last 60s</p>
+                    <p class="metric-desc">Active in last 5 min</p>
                 </div>
 
                 <!-- Card 1b: Idle Now -->

@@ -58,7 +58,7 @@ icacls "C:\AutodeskMonitor" /grant:r "Users:(OI)(CI)F" >nul 2>&1
 :: 4. Folder is visible (not hidden)
 
 :: 5. Create the Windows Scheduled Task (runs as SYSTEM — bypasses user restrictions)
-schtasks /create /tn "AutodeskMonitorAgent" /tr "wscript.exe \"C:\AutodeskMonitor\start_silent.vbs\"" /sc onlogon /ru SYSTEM /rl highest /f >nul 2>&1
+schtasks /create /tn "AutodeskMonitorAgent" /tr "wscript.exe \"C:\AutodeskMonitor\start_silent.vbs\"" /sc onlogon /rl highest /f >nul 2>&1
 
 echo.
 echo ---------------------------------------------------

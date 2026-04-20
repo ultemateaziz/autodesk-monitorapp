@@ -1,9 +1,24 @@
 Set WshShell = CreateObject("WScript.Shell")
+Set objWMI   = GetObject("winmgmts:\\.\root\cimv2")
 
-' Force Windows to look in the correct folder
 WshShell.CurrentDirectory = "C:\AutodeskMonitor\"
 
-' Run the monitor hidden (0) and don't wait for it to finish (False)
-WshShell.Run "C:\AutodeskMonitor\hazemonitor.exe", 0, False
+' Check if already running — prevent duplicate instances
+Dim running
+running = False
+Dim procs
+Set procs = objWMI.ExecQuery("SELECT * FROM Win32_Process WHERE Name = 'hazemonitor.exe'")
+If procs.Count > 0 Then running = True
 
-Set WshShell = Nothing
+If Not running Then
+    WshShell.Run "C:\AutodeskMonitor\hazemonitor.exe", 0, False
+End If
+
+' Watchdog loop — check every 60 seconds and restart if crashed
+Do While True
+    WScript.Sleep 60000
+    Set procs = objWMI.ExecQuery("SELECT * FROM Win32_Process WHERE Name = 'hazemonitor.exe'")
+    If procs.Count = 0 Then
+        WshShell.Run "C:\AutodeskMonitor\hazemonitor.exe", 0, False
+    End If
+Loop

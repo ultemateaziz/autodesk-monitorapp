@@ -506,8 +506,13 @@
                     </p>
                     <div class="status-badges">
                         <span class="badge-status active">{{ $department }}</span>
-                        <span class="badge-status"
-                            style="background: rgba(16, 185, 129, 0.1); color: #10b981;">Active</span>
+                        @if ($isOnline)
+                            <span class="badge-status" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">&#9679; Online</span>
+                        @elseif ($isIdle)
+                            <span class="badge-status" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">&#9679; Idle</span>
+                        @else
+                            <span class="badge-status" style="background: rgba(100, 116, 139, 0.1); color: #64748b;">&#9679; Offline</span>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -573,8 +578,17 @@
                     <div class="metric-value">{{ $productivityScore }}%</div>
                     <div class="trend-badge {{ $trend >= 0 ? 'trend-up' : 'trend-down' }}">
                         <i class="fas fa-arrow-{{ $trend >= 0 ? 'up' : 'down' }}"></i>
-                        <span>{{ abs($trend) }}% vs last month</span>
+                        <span>{{ abs($trend) }}% vs prev period</span>
                     </div>
+                </div>
+
+                <div class="metric-card card-floating" style="animation-delay: 0.6s;">
+                    <div class="metric-header">
+                        <span class="metric-label">Days Active</span>
+                        <i class="fas fa-calendar-check" style="color: #06b6d4;"></i>
+                    </div>
+                    <div class="metric-value">{{ $activeDays }}</div>
+                    <p class="metric-desc">Unique days with logged activity</p>
                 </div>
             </div>
 

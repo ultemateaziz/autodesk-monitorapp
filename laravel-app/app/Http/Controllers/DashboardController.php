@@ -33,7 +33,7 @@ class DashboardController extends Controller
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
         // 1. Current Online Users (Always Live - ignore date filters, but respect auth)
-        $onlineQuery = ActivityLog::where('recorded_at', '>=', now()->subSeconds(60));
+        $onlineQuery = ActivityLog::where('recorded_at', '>=', now()->subSeconds(300));
         if ($authorizedUsernames !== null) {
             $onlineQuery->whereIn('user_name', $authorizedUsernames);
         }
@@ -44,10 +44,10 @@ class DashboardController extends Controller
         if ($authorizedUsernames !== null) {
             $totalLogsQuery->whereIn('user_name', $authorizedUsernames);
         }
-        $totalLogsInRange = $totalLogsQuery->count();
-        $totalSeconds = $totalLogsInRange * 3;
-        $totalHours = floor($totalSeconds / 3600);
-        $totalMinutes = floor(($totalSeconds % 3600) / 60);
+        $totalLogsInRange = (clone $totalLogsQuery)->count();
+        $totalSeconds     = $totalLogsInRange * 3;
+        $totalHours       = floor($totalSeconds / 3600);
+        $totalMinutes     = floor(($totalSeconds % 3600) / 60);
 
         // 3. Market Share — period-adjusted date range (matches timeline chart)
         $marketFrom = match($period) {
@@ -383,13 +383,15 @@ class DashboardController extends Controller
 
     private function mapApplicationName($rawName)
     {
-        // Detect 4-digit year (version)
+        // Extract year before stripping it — avoids double append (e.g. "AutoCAD 2025 2025")
         $version = '';
         if (preg_match('/(20\d{2})/', $rawName, $matches)) {
             $version = ' ' . $matches[0];
         }
 
-        $rawName = strtolower($rawName);
+        // Remove the year from the raw name before map lookup
+        $cleanRaw = strtolower(trim(preg_replace('/\s*20\d{2}\s*/', ' ', $rawName)));
+
         $map = [
             'acad' => 'AutoCAD',
             'revit' => 'Revit',
@@ -406,10 +408,10 @@ class DashboardController extends Controller
             'estmep' => 'Fabrication ESTmep',
             'camduct' => 'Fabrication CAMduct',
         ];
-        foreach($map as $key => $clean) {
-            if (str_contains($rawName, $key)) return $clean . $version;
+        foreach ($map as $key => $clean) {
+            if (str_contains($cleanRaw, $key)) return $clean . $version;
         }
-        return ucfirst($rawName) . $version;
+        return ucfirst($cleanRaw) . $version;
     }
 
     public function users()
@@ -459,9 +461,8 @@ class DashboardController extends Controller
 
         $users = [];
         foreach ($usernames as $name) {
-            $lastLog   = $lastLogs->get($name);
-            $todayCount = $todayCounts->get($name, 0);
-            $seconds   = $todayCount * 3;
+            $lastLog = $lastLogs->get($name);
+            $seconds = $todayCounts->get($name, 0) * 3;
             $h = floor($seconds / 3600);
             $m = floor(($seconds % 3600) / 60);
 
@@ -472,8 +473,9 @@ class DashboardController extends Controller
 
             $lastStatus  = $lastLog ? $lastLog->status : null;
             $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
-            $isOnline    = $lastSeenSec < 60 && $lastStatus === 'Active';
-            $isIdle      = $lastSeenSec < 120 && $lastStatus === 'Idle';
+            $statusLower = strtolower($lastStatus ?? '');
+            $isOnline    = $lastSeenSec < 300 && in_array($statusLower, ['active', 'open']);
+            $isIdle      = !$isOnline && $lastSeenSec < 600 && $statusLower === 'idle';
 
             $users[] = (object)[
                 'name'             => $name,
@@ -634,8 +636,6 @@ class DashboardController extends Controller
         $startDate = $request->get('from', now()->subDays(30)->toDateString());
         $endDate   = $request->get('to', now()->toDateString());
         $selectedApp = $request->get('software', 'all');
-        $startDate = $request->get('from');
-        $endDate = $request->get('to');
         
         $selectedDept = $request->get('department', 'all');
         if (auth()->user()->role === 'team_leader') {

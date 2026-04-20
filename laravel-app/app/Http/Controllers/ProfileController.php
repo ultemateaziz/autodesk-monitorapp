@@ -56,7 +56,7 @@ class ProfileController extends Controller
         $department = $targetProfile ? $targetProfile->department : 'Unassigned';
 
         // --- Date Range Handling ---
-        $startDate = $request->get('from', now()->startOfMonth()->toDateString());
+        $startDate = $request->get('from', now()->subDays(29)->toDateString());
         $endDate = $request->get('to', now()->toDateString());
         
         // Convert to Carbon for queries
@@ -64,18 +64,23 @@ class ProfileController extends Controller
         $to = Carbon::parse($endDate)->endOfDay();
 
         // 2. Fetch User Machine Details
-        $machineName = ActivityLog::where('user_name', $userName)->latest('recorded_at')->value('machine_name');
+        $lastLog = ActivityLog::where('user_name', $userName)->latest('recorded_at')->first();
+        $machineName = $lastLog?->machine_name;
+        $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
+        $lastStatus  = $lastLog?->status;
+        $statusLower = strtolower($lastStatus ?? '');
+        $isOnline    = $lastSeenSec < 300 && in_array($statusLower, ['active', 'open']);
+        $isIdle      = !$isOnline && $lastSeenSec < 600 && $statusLower === 'idle';
 
         // 3. Analytics based on Selected Range
         $rangeQuery = ActivityLog::where('user_name', $userName)
             ->whereBetween('recorded_at', [$from, $to]);
 
-        $totalLogsInRange = (clone $rangeQuery)->count();
+        $totalLogsInRange    = (clone $rangeQuery)->count();
         $totalSecondsInRange = $totalLogsInRange * 3;
         $th = floor($totalSecondsInRange / 3600);
         $tm = floor(($totalSecondsInRange % 3600) / 60);
-        $totalHoursInRangeFormat = "{$th}h {$tm}m";
-        // Keeping the numeric value for the score calculation:
+        $totalHoursInRangeFormat  = "{$th}h {$tm}m";
         $totalHoursInRangeNumeric = $totalSecondsInRange / 3600;
 
         // 4. Primary Software & Usage % (With Selected Range)
@@ -94,16 +99,23 @@ class ProfileController extends Controller
         $primarySoftwarePercent = $totalLogsInRange > 0 ? round(($primarySoftwareCount / $totalLogsInRange) * 100) : 0;
 
         // 5. Productivity Score & Trend
-        // (Maintaining the Monthly Trend Logic but showing score for selected range)
-        $targetHoursPerMonth = 160;
-        $productivityScore = round(min(($totalHoursInRangeNumeric / $targetHoursPerMonth) * 100, 100));
+        // Target is proportional to the range length (8h/day baseline)
+        $rangeDays = max(1, $from->diffInDays($to) + 1);
+        $targetHours = $rangeDays * 8;
+        $productivityScore = round(min(($totalHoursInRangeNumeric / $targetHours) * 100, 100));
 
-        // Trend calculation (Current Month vs Last Month) remains for context
-        $currentMonthHours = (ActivityLog::where('user_name', $userName)->whereBetween('recorded_at', [now()->startOfMonth(), now()])->count() * 3) / 3600;
-        $lastMonthHours = (ActivityLog::where('user_name', $userName)->whereBetween('recorded_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count() * 3) / 3600;
-        $currentMonthScore = round(min(($currentMonthHours / $targetHoursPerMonth) * 100, 100));
-        $lastMonthScore = round(min(($lastMonthHours / $targetHoursPerMonth) * 100, 100));
-        $trend = $currentMonthScore - $lastMonthScore;
+        // Days Active in selected range
+        $activeDays = (clone $rangeQuery)
+            ->selectRaw('DATE(recorded_at) as day')
+            ->distinct()
+            ->count();
+
+        // Trend: current 30-day period vs previous 30-day period
+        $currentPeriodHours = (ActivityLog::where('user_name', $userName)->whereBetween('recorded_at', [now()->subDays(29)->startOfDay(), now()])->count() * 3) / 3600;
+        $lastPeriodHours    = (ActivityLog::where('user_name', $userName)->whereBetween('recorded_at', [now()->subDays(59)->startOfDay(), now()->subDays(30)->endOfDay()])->count() * 3) / 3600;
+        $currentPeriodScore = round(min(($currentPeriodHours / (30 * 8)) * 100, 100));
+        $lastPeriodScore    = round(min(($lastPeriodHours    / (30 * 8)) * 100, 100));
+        $trend = $currentPeriodScore - $lastPeriodScore;
 
         // 6. Daily Activity Timeline (Grouped by Application)
         // Adjusting to show data within the selected range or last 24h if range is 1 day
@@ -225,6 +237,9 @@ class ProfileController extends Controller
             'displayName' => $displayName,
             'department' => $department,
             'machineName' => $machineName,
+            'isOnline' => $isOnline,
+            'isIdle' => $isIdle,
+            'activeDays' => $activeDays,
             'totalHours' => $totalHoursInRangeFormat,
             'primarySoftware' => $primarySoftware,
             'primarySoftwarePercent' => $primarySoftwarePercent,
@@ -250,37 +265,38 @@ class ProfileController extends Controller
      */
     private function mapApplicationName($rawName)
     {
-        // Detect 4-digit year (version)
+        // Extract year before stripping it — avoids double append (e.g. "AutoCAD 2025 2025")
         $version = '';
         if (preg_match('/(20\d{2})/', $rawName, $matches)) {
             $version = ' ' . $matches[0];
         }
 
-        $rawName = strtolower($rawName);
-        
+        // Remove the year from raw name before map lookup
+        $cleanRaw = strtolower(trim(preg_replace('/\s*20\d{2}\s*/', ' ', $rawName)));
+
         $map = [
-            'acad' => 'AutoCAD', // Ensure exact casing
-            'revit' => 'Revit',
-            '3dsmax' => '3ds Max',
-            'roamer' => 'Navisworks',
-            'infraworks' => 'InfraWorks',
-            'recap' => 'ReCap Pro',
+            'acad'             => 'AutoCAD',
+            'revit'            => 'Revit',
+            '3dsmax'           => '3ds Max',
+            'roamer'           => 'Navisworks',
+            'infraworks'       => 'InfraWorks',
+            'recap'            => 'ReCap Pro',
             'desktopconnector' => 'Autodesk Docs',
-            'formit' => 'FormIt',
-            'robot' => 'Robot Structural Analysis',
-            'sbd' => 'Structural Bridge Design',
-            'inventor' => 'Inventor',
-            'fusion360' => 'Fusion 360',
-            'estmep' => 'Fabrication ESTmep',
-            'camduct' => 'Fabrication CAMduct',
+            'formit'           => 'FormIt',
+            'robot'            => 'Robot Structural Analysis',
+            'sbd'              => 'Structural Bridge Design',
+            'inventor'         => 'Inventor',
+            'fusion360'        => 'Fusion 360',
+            'estmep'           => 'Fabrication ESTmep',
+            'camduct'          => 'Fabrication CAMduct',
         ];
 
-        foreach($map as $key => $clean) {
-            if (str_contains($rawName, $key)) {
+        foreach ($map as $key => $clean) {
+            if (str_contains($cleanRaw, $key)) {
                 return $clean . $version;
             }
         }
 
-        return ucfirst($rawName) . $version;
+        return ucfirst($cleanRaw) . $version;
     }
 }

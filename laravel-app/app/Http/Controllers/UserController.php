@@ -153,7 +153,7 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'User updated successfully.');
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
         if (!auth()->check() || auth()->user()->role !== 'admin') {
             abort(403);
