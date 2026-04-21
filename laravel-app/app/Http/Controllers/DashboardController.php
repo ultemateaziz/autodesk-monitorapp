@@ -381,7 +381,7 @@ class DashboardController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    private function mapApplicationName($rawName)
+    private function mapApplicationName($rawName, $withVersion = true)
     {
         // Extract year before stripping it — avoids double append (e.g. "AutoCAD 2025 2025")
         $version = '';
@@ -409,9 +409,9 @@ class DashboardController extends Controller
             'camduct' => 'Fabrication CAMduct',
         ];
         foreach ($map as $key => $clean) {
-            if (str_contains($cleanRaw, $key)) return $clean . $version;
+            if (str_contains($cleanRaw, $key)) return $clean . ($withVersion ? $version : '');
         }
-        return ucfirst($cleanRaw) . $version;
+        return ucfirst($cleanRaw) . ($withVersion ? $version : '');
     }
 
     public function users()
@@ -423,62 +423,85 @@ class DashboardController extends Controller
 
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
-        $query = ActivityLog::distinct('user_name');
+        // Get distinct machines (each PC = one row, no more IP flipping)
+        $machineQuery = ActivityLog::selectRaw('machine_name, MAX(user_name) as user_name')
+            ->groupBy('machine_name');
         if ($authorizedUsernames !== null) {
-            $query->whereIn('user_name', $authorizedUsernames);
+            $machineQuery->whereIn('user_name', $authorizedUsernames);
         }
-        $usernames = $query->pluck('user_name');
+        $machines = $machineQuery->get(); // collection of {machine_name, user_name}
+        $machineNames = $machines->pluck('machine_name');
+        $usernames    = $machines->pluck('user_name')->unique();
 
-        // ── Bulk-fetch everything upfront (eliminates N+1 queries) ──
-
-        // 1. Latest log per user — one query, grouped in PHP
+        // 1. Latest log per machine — for display (app name, last seen)
         $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'ip_address', 'recorded_at', 'status')
-            ->whereIn('user_name', $usernames)
+            ->whereIn('machine_name', $machineNames)
             ->orderBy('recorded_at', 'desc')
             ->get()
-            ->groupBy('user_name')
+            ->groupBy('machine_name')
             ->map(fn($logs) => $logs->first());
 
-        // 2. Today's log counts per user — one aggregation query
-        $todayCounts = ActivityLog::selectRaw('user_name, COUNT(*) as cnt')
-            ->whereIn('user_name', $usernames)
-            ->whereDate('recorded_at', today())
-            ->groupBy('user_name')
-            ->pluck('cnt', 'user_name');
+        // 1b. Latest Active/Idle log per machine — for status only (ignore background Open logs)
+        $lastStatusLogs = ActivityLog::select('machine_name', 'recorded_at', 'status')
+            ->whereIn('machine_name', $machineNames)
+            ->whereIn('status', ['Active', 'Idle'])
+            ->orderBy('recorded_at', 'desc')
+            ->get()
+            ->groupBy('machine_name')
+            ->map(fn($logs) => $logs->first());
 
-        // 3. Distinct apps actually used per user — pulled from activity logs
-        $allUsedSoftware = ActivityLog::selectRaw('user_name, application')
-            ->whereIn('user_name', $usernames)
+        // 2. Today's active log counts per machine
+        $todayCounts = ActivityLog::selectRaw('machine_name, COUNT(*) as cnt')
+            ->whereIn('machine_name', $machineNames)
+            ->whereDate('recorded_at', today())
+            ->where('status', 'Active')
+            ->groupBy('machine_name')
+            ->pluck('cnt', 'machine_name');
+
+        // 3. Distinct apps per machine
+        $allUsedSoftware = ActivityLog::selectRaw('machine_name, application')
+            ->whereIn('machine_name', $machineNames)
             ->distinct()
             ->get()
-            ->groupBy('user_name')
-            ->map(fn($rows) => $rows->map(fn($r) => $this->mapApplicationName($r->application))->unique()->values()->toArray());
+            ->groupBy('machine_name')
+            ->map(fn($rows) => $rows
+                ->map(fn($r) => [
+                    'base' => $this->mapApplicationName($r->application, false),
+                    'full' => $this->mapApplicationName($r->application, true),
+                ])
+                ->sortByDesc('full')        // prefer versioned name ("AutoCAD 2025" over "AutoCAD")
+                ->unique('base')            // deduplicate by base name
+                ->pluck('full')
+                ->values()
+                ->toArray());
 
-        // 4. All profiles keyed by user_name — one query
+        // 4. Profiles keyed by user_name
         $allProfiles = UserProfile::whereIn('user_name', $usernames)
             ->get()
             ->keyBy('user_name');
 
         $users = [];
-        foreach ($usernames as $name) {
-            $lastLog = $lastLogs->get($name);
-            $seconds = $todayCounts->get($name, 0) * 3;
+        foreach ($machines as $machine) {
+            $machineName = $machine->machine_name;
+            $userName    = $machine->user_name;
+            $lastLog     = $lastLogs->get($machineName);
+            $seconds     = $todayCounts->get($machineName, 0) * 3;
             $h = floor($seconds / 3600);
             $m = floor(($seconds % 3600) / 60);
 
-            $profile     = $allProfiles->get($name);
+            $profile     = $allProfiles->get($userName);
             $department  = $profile ? $profile->department  : 'Unassigned';
             $displayName = $profile ? $profile->display_name : null;
             $email       = $profile ? $profile->email : null;
 
-            $lastStatus  = $lastLog ? $lastLog->status : null;
-            $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
-            $statusLower = strtolower($lastStatus ?? '');
-            $isOnline    = $lastSeenSec < 600 && in_array($statusLower, ['active', 'open']);
-            $isIdle      = !$isOnline && $lastSeenSec < 600 && $statusLower === 'idle';
+            $statusLog   = $lastStatusLogs->get($machineName);
+            $lastSeenSec = $statusLog ? $statusLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
+            $statusLower = strtolower($statusLog->status ?? '');
+            $isOnline    = $lastSeenSec < 600 && $statusLower === 'active';
+            $isIdle      = $lastSeenSec < 600 && $statusLower === 'idle';
 
             $users[] = (object)[
-                'name'             => $name,
+                'name'             => $userName,
                 'display_name'     => $displayName,
                 'email'            => $email,
                 'last_app'         => $this->mapApplicationName($lastLog ? $lastLog->application : 'N/A'),
@@ -486,9 +509,9 @@ class DashboardController extends Controller
                 'is_online'        => $isOnline,
                 'is_idle'          => $isIdle,
                 'total_time_today' => "{$h}h {$m}m",
-                'machine'          => $lastLog ? $lastLog->machine_name : 'Unknown',
+                'machine'          => $machineName,
                 'ip_address'       => $lastLog ? $lastLog->ip_address : null,
-                'used_software'    => $allUsedSoftware->get($name, []),
+                'used_software'    => $allUsedSoftware->get($machineName, []),
                 'department'       => $department
             ];
         }

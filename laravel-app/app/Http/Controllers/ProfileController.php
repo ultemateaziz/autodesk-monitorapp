@@ -63,18 +63,24 @@ class ProfileController extends Controller
         $from = Carbon::parse($startDate)->startOfDay();
         $to = Carbon::parse($endDate)->endOfDay();
 
-        // 2. Fetch User Machine Details
-        $lastLog = ActivityLog::where('user_name', $userName)->latest('recorded_at')->first();
+        // 2. Fetch User Machine Details — use last Active/Idle log for status (ignore background Open)
+        $lastLog     = ActivityLog::where('user_name', $userName)->latest('recorded_at')->first();
         $machineName = $lastLog?->machine_name;
-        $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
-        $lastStatus  = $lastLog?->status;
+
+        $lastActiveLog = ActivityLog::where('user_name', $userName)
+            ->whereIn('status', ['Active', 'Idle'])
+            ->latest('recorded_at')
+            ->first();
+        $lastSeenSec = $lastActiveLog ? $lastActiveLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
+        $lastStatus  = $lastActiveLog?->status;
         $statusLower = strtolower($lastStatus ?? '');
-        $isOnline    = $lastSeenSec < 300 && in_array($statusLower, ['active', 'open']);
-        $isIdle      = !$isOnline && $lastSeenSec < 600 && $statusLower === 'idle';
+        $isOnline    = $lastSeenSec < 600 && $statusLower === 'active';
+        $isIdle      = $lastSeenSec < 600 && $statusLower === 'idle';
 
         // 3. Analytics based on Selected Range
         $rangeQuery = ActivityLog::where('user_name', $userName)
-            ->whereBetween('recorded_at', [$from, $to]);
+            ->whereBetween('recorded_at', [$from, $to])
+            ->where('status', 'Active');
 
         $totalLogsInRange    = (clone $rangeQuery)->count();
         $totalSecondsInRange = $totalLogsInRange * 3;
@@ -106,9 +112,8 @@ class ProfileController extends Controller
 
         // Days Active in selected range
         $activeDays = (clone $rangeQuery)
-            ->selectRaw('DATE(recorded_at) as day')
-            ->distinct()
-            ->count();
+            ->selectRaw('COUNT(DISTINCT DATE(recorded_at)) as day_count')
+            ->value('day_count');
 
         // Trend: current 30-day period vs previous 30-day period
         $currentPeriodHours = (ActivityLog::where('user_name', $userName)->whereBetween('recorded_at', [now()->subDays(29)->startOfDay(), now()])->count() * 3) / 3600;
@@ -209,7 +214,7 @@ class ProfileController extends Controller
         $sevenDaysLabels = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i);
-            $logsCount = ActivityLog::where('user_name', $userName)->whereDate('recorded_at', $date)->count();
+            $logsCount = ActivityLog::where('user_name', $userName)->whereDate('recorded_at', $date)->where('status', 'Active')->count();
             $hours = ($logsCount * 3) / 3600;
             $eff = round(min(($hours / 8) * 100, 100));
             $sevenDaysData[] = $eff;
@@ -217,7 +222,7 @@ class ProfileController extends Controller
         }
 
         // 10. Overall Lifetime Metrics (Ignore Filters)
-        $overallTotalLogs = ActivityLog::where('user_name', $userName)->count();
+        $overallTotalLogs = ActivityLog::where('user_name', $userName)->where('status', 'Active')->count();
         $overallTotalSeconds = $overallTotalLogs * 3;
         $oh = floor($overallTotalSeconds / 3600);
         $om = floor(($overallTotalSeconds % 3600) / 60);

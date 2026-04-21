@@ -818,10 +818,14 @@
                             borderWidth: 1,
                             callbacks: {
                                 label: function(context) {
-                                    const totalMins = Math.round(context.parsed.y);
+                                    const totalMins = context.parsed.y;
+                                    if (totalMins < 1) {
+                                        const secs = Math.round(totalMins * 60);
+                                        return context.dataset.label + ': ' + secs + 's';
+                                    }
                                     const h = Math.floor(totalMins / 60);
-                                    const m = totalMins % 60;
-                                    return context.dataset.label + ': ' + h + 'h ' + m + 'm';
+                                    const m = Math.round(totalMins % 60);
+                                    return context.dataset.label + ': ' + (h > 0 ? h + 'h ' : '') + m + 'm';
                                 }
                             }
                         }
