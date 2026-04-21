@@ -33,7 +33,7 @@ class DashboardController extends Controller
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
         // 1. Current Online Users (Always Live - ignore date filters, but respect auth)
-        $onlineQuery = ActivityLog::where('recorded_at', '>=', now()->subSeconds(300));
+        $onlineQuery = ActivityLog::where('recorded_at', '>=', now()->subSeconds(600));
         if ($authorizedUsernames !== null) {
             $onlineQuery->whereIn('user_name', $authorizedUsernames);
         }
@@ -432,7 +432,7 @@ class DashboardController extends Controller
         // ── Bulk-fetch everything upfront (eliminates N+1 queries) ──
 
         // 1. Latest log per user — one query, grouped in PHP
-        $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'ip_address', 'recorded_at')
+        $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'ip_address', 'recorded_at', 'status')
             ->whereIn('user_name', $usernames)
             ->orderBy('recorded_at', 'desc')
             ->get()
@@ -474,7 +474,7 @@ class DashboardController extends Controller
             $lastStatus  = $lastLog ? $lastLog->status : null;
             $lastSeenSec = $lastLog ? $lastLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
             $statusLower = strtolower($lastStatus ?? '');
-            $isOnline    = $lastSeenSec < 300 && in_array($statusLower, ['active', 'open']);
+            $isOnline    = $lastSeenSec < 600 && in_array($statusLower, ['active', 'open']);
             $isIdle      = !$isOnline && $lastSeenSec < 600 && $statusLower === 'idle';
 
             $users[] = (object)[

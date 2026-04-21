@@ -4,7 +4,7 @@ const axios = require('axios');
 
 // --- CONFIGURATION ---
 const CHECK_INTERVAL_MS    = 3000;      // Foreground check: every 3 seconds
-const BG_CHECK_INTERVAL_MS = 60000;    // Background apps check: every 60 seconds
+const BG_CHECK_INTERVAL_MS = 30000;    // Background apps check: every 30 seconds
 const API_URL              = 'http://192.168.0.200:8001/api/log-activity';
 const SETTINGS_API_URL     = 'http://192.168.0.200:8001/api/idle-threshold';
 
@@ -162,7 +162,7 @@ function checkActiveWindow() {
             const version   = yearMatch ? ` ${yearMatch[1]}` : '';
             const appName   = SOFTWARE_MAPPING[foundTarget] + version;
             const status    = isIdle ? 'Idle' : 'Active';
-            const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const timestamp = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace('T', ' '); })();
 
             const payload = {
                 machine_name: machineId,
@@ -198,7 +198,7 @@ function scanBackgroundApps() {
         getBackgroundAutodeskApps(activeProcessName, (bgApps) => {
             if (bgApps.length === 0) return;
 
-            const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const timestamp = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace('T', ' '); })();
             console.log(`[MULTI]   Background apps detected: ${bgApps.map(a => a.name).join(', ')}`);
 
             bgApps.forEach(app => {
