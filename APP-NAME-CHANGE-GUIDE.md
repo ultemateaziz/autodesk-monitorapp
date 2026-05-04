@@ -1,4 +1,4 @@
-# ASCLAM — Application Name Change Guide
+# ACLAM — Application Name Change Guide
 
 > Use this document whenever you want to rename the application.
 > Only frontend (blade) files need to be changed. Database and functions are not affected.
@@ -6,7 +6,7 @@
 ---
 
 ## Current Application Name
-**ASCLAM**
+**ACLAM**
 
 ---
 
@@ -15,18 +15,18 @@
 ### Step 1 — Find all occurrences
 Run this command in the laravel-app folder to find every place the name appears:
 ```bash
-grep -r "ASCLAM" resources/views/ --include="*.blade.php" -l
+grep -r "ACLAM" resources/views/ --include="*.blade.php" -l
 ```
 
 ### Step 2 — Replace in all files at once
-Replace `ASCLAM` with your new name (e.g. `NEWNAME`):
+Replace `ACLAM` with your new name (e.g. `NEWNAME`):
 ```bash
 # On Linux/Mac
-find resources/views -name "*.blade.php" -exec sed -i 's/ASCLAM/NEWNAME/g' {} +
+find resources/views -name "*.blade.php" -exec sed -i 's/ACLAM/NEWNAME/g' {} +
 
 # On Windows PowerShell
 Get-ChildItem -Path "resources\views" -Recurse -Filter "*.blade.php" | 
-ForEach-Object { (Get-Content $_.FullName) -replace "ASCLAM", "NEWNAME" | Set-Content $_.FullName }
+ForEach-Object { (Get-Content $_.FullName) -replace "ACLAM", "NEWNAME" | Set-Content $_.FullName }
 ```
 
 ---
@@ -61,6 +61,7 @@ ForEach-Object { (Get-Content $_.FullName) -replace "ASCLAM", "NEWNAME" | Set-Co
 |------|----------|----------|------------|
 | 2026-04-12 | ArchEng Pro Monitor | ARCHLAM | Developer |
 | 2026-04-17 | ARCHLAM | ASCLAM | Developer |
+| 2026-04-23 | ASCLAM | ACLAM | Gemini CLI |
 
 ---
 

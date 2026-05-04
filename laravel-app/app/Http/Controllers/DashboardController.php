@@ -423,54 +423,46 @@ class DashboardController extends Controller
 
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
-        // Get distinct machines (each PC = one row, no more IP flipping)
-        $machineQuery = ActivityLog::selectRaw('machine_name, MAX(user_name) as user_name')
-            ->groupBy('machine_name');
+        // Windows system/service accounts excluded from user-facing views
+        $systemAccounts = ['administrator', 'admin', 'system', 'localservice', 'networkservice', 'defaultuser0'];
+
+        // User-centric: get latest log per USER (not per machine) — fixes user switching machines
+        $latestIdPerUser = ActivityLog::selectRaw('MAX(id) as id')
+            ->whereRaw('LOWER(user_name) NOT IN (' . implode(',', array_fill(0, count($systemAccounts), '?')) . ')', $systemAccounts)
+            ->groupBy('user_name');
         if ($authorizedUsernames !== null) {
-            $machineQuery->whereIn('user_name', $authorizedUsernames);
+            $latestIdPerUser->whereIn('user_name', $authorizedUsernames);
         }
-        $machines = $machineQuery->get(); // collection of {machine_name, user_name}
-        $machineNames = $machines->pluck('machine_name');
-        $usernames    = $machines->pluck('user_name')->unique();
-
-        // 1. Latest log per machine — for display (app name, last seen)
-        $lastLogs = ActivityLog::select('user_name', 'application', 'machine_name', 'ip_address', 'recorded_at', 'status')
-            ->whereIn('machine_name', $machineNames)
-            ->orderBy('recorded_at', 'desc')
+        $userLatestLogs = ActivityLog::select('machine_name', 'user_name', 'application', 'ip_address', 'recorded_at', 'status')
+            ->whereIn('id', $latestIdPerUser)
             ->get()
-            ->groupBy('machine_name')
-            ->map(fn($logs) => $logs->first());
+            ->keyBy('user_name');
 
-        // 1b. Latest Active/Idle log per machine — for status only (ignore background Open logs)
-        $lastStatusLogs = ActivityLog::select('machine_name', 'recorded_at', 'status')
-            ->whereIn('machine_name', $machineNames)
-            ->whereIn('status', ['Active', 'Idle'])
-            ->orderBy('recorded_at', 'desc')
-            ->get()
-            ->groupBy('machine_name')
-            ->map(fn($logs) => $logs->first());
+        $usernames = $userLatestLogs->keys();
 
-        // 2. Today's active log counts per machine
-        $todayCounts = ActivityLog::selectRaw('machine_name, COUNT(*) as cnt')
-            ->whereIn('machine_name', $machineNames)
+        // 2. Today's active log counts per USER (not machine — user may switch machines)
+        $todayCounts = ActivityLog::selectRaw('user_name, COUNT(*) as cnt')
+            ->whereIn('user_name', $usernames)
+            ->whereRaw('LOWER(user_name) NOT IN (' . implode(',', array_fill(0, count($systemAccounts), '?')) . ')', $systemAccounts)
             ->whereDate('recorded_at', today())
             ->where('status', 'Active')
-            ->groupBy('machine_name')
-            ->pluck('cnt', 'machine_name');
+            ->groupBy('user_name')
+            ->pluck('cnt', 'user_name');
 
-        // 3. Distinct apps per machine
-        $allUsedSoftware = ActivityLog::selectRaw('machine_name, application')
-            ->whereIn('machine_name', $machineNames)
+        // 3. Distinct apps per USER — last 90 days
+        $allUsedSoftware = ActivityLog::selectRaw('user_name, application')
+            ->whereIn('user_name', $usernames)
+            ->where('recorded_at', '>=', now()->subDays(90))
             ->distinct()
             ->get()
-            ->groupBy('machine_name')
+            ->groupBy('user_name')
             ->map(fn($rows) => $rows
                 ->map(fn($r) => [
                     'base' => $this->mapApplicationName($r->application, false),
                     'full' => $this->mapApplicationName($r->application, true),
                 ])
-                ->sortByDesc('full')        // prefer versioned name ("AutoCAD 2025" over "AutoCAD")
-                ->unique('base')            // deduplicate by base name
+                ->sortByDesc('full')
+                ->unique('base')
                 ->pluck('full')
                 ->values()
                 ->toArray());
@@ -481,11 +473,9 @@ class DashboardController extends Controller
             ->keyBy('user_name');
 
         $users = [];
-        foreach ($machines as $machine) {
-            $machineName = $machine->machine_name;
-            $userName    = $machine->user_name;
-            $lastLog     = $lastLogs->get($machineName);
-            $seconds     = $todayCounts->get($machineName, 0) * 3;
+        foreach ($userLatestLogs as $userName => $lastLog) {
+            $machineName = $lastLog->machine_name;
+            $seconds     = $todayCounts->get($userName, 0) * 3;
             $h = floor($seconds / 3600);
             $m = floor(($seconds % 3600) / 60);
 
@@ -494,27 +484,28 @@ class DashboardController extends Controller
             $displayName = $profile ? $profile->display_name : null;
             $email       = $profile ? $profile->email : null;
 
-            $statusLog   = $lastStatusLogs->get($machineName);
-            $lastSeenSec = $statusLog ? $statusLog->recorded_at->diffInSeconds(now()) : PHP_INT_MAX;
-            $statusLower = strtolower($statusLog->status ?? '');
-            $isOnline    = $lastSeenSec < 600 && $statusLower === 'active';
+            $lastSeenSec = $lastLog->recorded_at->diffInSeconds(now());
+            $statusLower = strtolower($lastLog->status ?? '');
+            $isOnline    = $lastSeenSec < 600 && in_array($statusLower, ['active', 'idle', 'open']);
             $isIdle      = $lastSeenSec < 600 && $statusLower === 'idle';
 
             $users[] = (object)[
                 'name'             => $userName,
                 'display_name'     => $displayName,
                 'email'            => $email,
-                'last_app'         => $this->mapApplicationName($lastLog ? $lastLog->application : 'N/A'),
-                'last_seen'        => $lastLog ? $lastLog->recorded_at->diffForHumans() : 'Never',
+                'last_app'         => $this->mapApplicationName($lastLog->application ?? 'N/A'),
+                'last_seen'        => $lastLog->recorded_at->diffForHumans(),
                 'is_online'        => $isOnline,
                 'is_idle'          => $isIdle,
                 'total_time_today' => "{$h}h {$m}m",
                 'machine'          => $machineName,
-                'ip_address'       => $lastLog ? $lastLog->ip_address : null,
-                'used_software'    => $allUsedSoftware->get($machineName, []),
+                'ip_address'       => $lastLog->ip_address,
+                'used_software'    => $allUsedSoftware->get($userName, []),
                 'department'       => $department
             ];
         }
+
+        $usernames = collect($usernames);
 
         $deptList = ['Architecture', 'MEP', 'Structural', 'Infrastructure', 'Visualization'];
 
@@ -895,10 +886,14 @@ class DashboardController extends Controller
             'Fabrication ESTmep', 'Fabrication CAMduct'
         ];
 
+        // Windows system/service accounts — excluded from all user-facing views
+        $systemAccounts = ['administrator', 'admin', 'system', 'localservice', 'networkservice', 'defaultuser0'];
+
         // 1. Get Top Users for Selected Software in the range
         $query = ActivityLog::where('application', 'LIKE', "%{$software}%")
-            ->whereBetween('recorded_at', [$from, $to]);
-        
+            ->whereBetween('recorded_at', [$from, $to])
+            ->whereRaw('LOWER(user_name) NOT IN (' . implode(',', array_fill(0, count($systemAccounts), '?')) . ')', $systemAccounts);
+
         if ($authorizedUsernames !== null) {
             $query->whereIn('user_name', $authorizedUsernames);
         }

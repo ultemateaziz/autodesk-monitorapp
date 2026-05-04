@@ -25,12 +25,13 @@ class LicenseActivationController extends Controller
 
         $key       = strtoupper(trim($request->license_key));
         $serverUrl = rtrim($request->license_server_url, '/');
+        $hardwareId = $this->getMachineId();
 
         // ── Call LicenseHub to activate ───────────────────────────
         try {
             $response = Http::withoutVerifying()->timeout(15)->post("{$serverUrl}/api/license/activate", [
                 'license_key' => $key,
-                'hardware_id' => $this->getMachineId(),
+                'hardware_id' => $hardwareId,
                 'machine_id'  => gethostname(),
             ]);
 
@@ -46,7 +47,10 @@ class LicenseActivationController extends Controller
         // ── Handle response ───────────────────────────────────────
         if (in_array($status, ['activated', 'valid'])) {
 
-            // Write key + URL to .env so it persists after restart
+            // Write to storage/app/license.json — canonical, always writable
+            $this->writeLicenseJson($key, $serverUrl, $hardwareId, $body['max_machines'] ?? null);
+
+            // Also attempt .env update for backward compat
             $this->writeToEnv('LICENSE_KEY', $key);
             $this->writeToEnv('LICENSE_MANAGER_URL', $serverUrl);
 
@@ -94,17 +98,40 @@ class LicenseActivationController extends Controller
         return gethostname() . '-' . php_uname('n');
     }
 
+    private function writeLicenseJson(string $key, string $serverUrl, string $hardwareId, ?int $maxMachines = null): void
+    {
+        $data = [
+            'license_key'  => $key,
+            'server_url'   => $serverUrl,
+            'hardware_id'  => $hardwareId,
+            'activated_at' => now()->toDateTimeString(),
+            'max_machines' => $maxMachines,
+        ];
+
+        $dir  = storage_path('app');
+        $file = $dir . DIRECTORY_SEPARATOR . 'license.json';
+
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+    }
+
     private function writeToEnv(string $key, string $value): void
     {
         $envPath = base_path('.env');
+
+        if (! is_writable($envPath)) {
+            return; // Skip silently — license.json is the canonical store
+        }
+
         $content = file_get_contents($envPath);
 
         if (str_contains($content, "{$key}=")) {
-            // Replace existing value
             $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
         } else {
-            // Append new key
-            $content .= "\n{$key}={$value}";
+            $content = rtrim($content) . "\n{$key}={$value}\n";
         }
 
         file_put_contents($envPath, $content);

@@ -33,7 +33,8 @@ class CheckLicense extends Command
         try {
             $response = Http::withoutVerifying()->timeout(10)->post("{$url}/api/license/pulse", [
                 'license_key' => $key,
-                'machine_id' => gethostname(),
+                'hardware_id' => $this->getMachineId(),
+                'machine_id'  => gethostname(),
             ]);
 
             $body = $response->json();
@@ -49,6 +50,11 @@ class CheckLicense extends Command
                 'customer' => $body['customer_name'] ?? '',
                 'checked' => now()->toDateTimeString(),
             ], now()->addMinutes(10));
+
+            // Update max_machines in license.json if LicenseHub returns it
+            if (isset($body['max_machines'])) {
+                $this->updateLicenseJsonMaxMachines((int) $body['max_machines']);
+            }
 
             // ── Log outcome ────────────────────────────────────
             match ($status) {
@@ -69,5 +75,25 @@ class CheckLicense extends Command
             $this->error('[LICENSE] ⚠ LicenseHub unreachable: ' . $e->getMessage());
             Log::warning('License check failed: ' . $e->getMessage());
         }
+    }
+
+    private function updateLicenseJsonMaxMachines(int $maxMachines): void
+    {
+        $file = storage_path('app/license.json');
+        if (!file_exists($file)) return;
+        $data = json_decode(file_get_contents($file), true) ?? [];
+        $data['max_machines'] = $maxMachines;
+        file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+    }
+
+    private function getMachineId(): string
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $output = shell_exec('reg query "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid 2>nul');
+            if ($output && preg_match('/MachineGuid\s+REG_SZ\s+([^\s]+)/', $output, $m)) {
+                return $m[1];
+            }
+        }
+        return gethostname() . '-' . php_uname('n');
     }
 }

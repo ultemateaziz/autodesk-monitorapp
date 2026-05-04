@@ -1,4 +1,4 @@
-# ASCLAM Monitor — Troubleshooting Log
+# ACLAM Monitor — Troubleshooting Log
 **Date:** 2026-04-17  
 **Session:** Installation & Deployment Troubleshooting
 
@@ -113,7 +113,7 @@ http://192.168.63.169:8001
 echo {
 echo   "name": "hazemonitor",
 echo   "version": "1.0.0",
-echo   "description": "ASCLAM Autodesk Monitor Agent",
+echo   "description": "ACLAM Autodesk Monitor Agent",
 echo   "main": "twomonitor.js",
 echo   "dependencies": {
 echo     "axios": "^1.6.0"
@@ -254,7 +254,7 @@ Expected: `The GET method is not supported` → means API is reachable ✅
 
 **Check 2 — Open Windows Firewall port 8001 on server PC:**
 ```cmd
-netsh advfirewall firewall add rule name="ASCLAM Port 8001" dir=in action=allow protocol=TCP localport=8001
+netsh advfirewall firewall add rule name="ACLAM Port 8001" dir=in action=allow protocol=TCP localport=8001
 ```
 
 **Check 3 — Confirm server IP in twomonitor.js:**

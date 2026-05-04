@@ -1,6 +1,6 @@
 @echo off
 :: ============================================================
-:: ASCLAM — Server Protection Script
+:: ACLAM — Server Protection Script
 :: Run this ONCE on the server PC after installation
 :: Right-click → Run as Administrator
 :: ============================================================
@@ -17,12 +17,12 @@ if %errorLevel% neq 0 (
 
 echo.
 echo  ============================================================
-echo   ASCLAM Server Protection Setup
+echo   ACLAM Server Protection Setup
 echo  ============================================================
 echo.
 
 :: ── SET THIS TO YOUR ACTUAL LARAVEL FOLDER PATH ──────────────
-set "APP_FOLDER=C:\ASCLAM\laravel-app"
+set "APP_FOLDER=C:\ACLAM\laravel-app"
 :: ─────────────────────────────────────────────────────────────
 
 if not exist "%APP_FOLDER%" (
@@ -104,9 +104,9 @@ echo.
 echo  [6/6] Blocking access to the dashboard from outside the LAN...
 :: Only allow port 8001 from the local network (192.168.0.0/24)
 :: First remove the old open rule if it exists
-netsh advfirewall firewall delete rule name="ASCLAM Dashboard" >nul 2>&1
+netsh advfirewall firewall delete rule name="ACLAM Dashboard" >nul 2>&1
 :: Add a new restricted rule — LAN only (adjust 192.168.0.0/24 to your subnet)
-netsh advfirewall firewall add rule name="ASCLAM Dashboard LAN Only" dir=in action=allow protocol=TCP localport=8001 remoteip=192.168.0.0/255.255.255.0 >nul 2>&1
+netsh advfirewall firewall add rule name="ACLAM Dashboard LAN Only" dir=in action=allow protocol=TCP localport=8001 remoteip=192.168.0.0/255.255.255.0 >nul 2>&1
 echo  Done. Port 8001 is now only reachable from 192.168.0.x devices.
 
 echo.

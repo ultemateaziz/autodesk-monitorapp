@@ -10,14 +10,14 @@ if %errorLevel% neq 0 (
 )
 
 echo =====================================================
-echo   ASCLAM Server - Auto Setup Installer
+echo   ACLAM Server - Auto Setup Installer
 echo   Installing: XAMPP, Composer, Node.js, Notepad++
 echo =====================================================
 echo.
 
 :: Create temp download folder
-if not exist "C:\ASCLAM_Setup" mkdir "C:\ASCLAM_Setup"
-cd /d "C:\ASCLAM_Setup"
+if not exist "C:\ACLAM_Setup" mkdir "C:\ACLAM_Setup"
+cd /d "C:\ACLAM_Setup"
 
 echo [1/4] Downloading XAMPP...
 powershell -Command "Invoke-WebRequest -Uri 'https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/8.2.12/xampp-windows-x64-8.2.12-0-VS16-installer.exe/download' -OutFile 'xampp-installer.exe'"
@@ -49,7 +49,7 @@ echo.
 
 :: Cleanup
 cd /d "C:\"
-rd /s /q "C:\ASCLAM_Setup"
+rd /s /q "C:\ACLAM_Setup"
 
 echo =====================================================
 echo   ALL DONE! Please restart your PC.

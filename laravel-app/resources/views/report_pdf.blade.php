@@ -535,7 +535,7 @@
                 <i class="fas fa-compass-drafting" style="color:white;"></i>
             </div>
             <div>
-                <div class="print-bar-title">ASCLAM — Report Preview</div>
+                <div class="print-bar-title">ACLM — Report Preview</div>
                 <div class="print-bar-sub">Generated for {{ auth()->user()->name }} · {{ now()->format('d M Y, H:i') }}
                 </div>
             </div>
@@ -844,7 +844,7 @@
         <!-- ===== REPORT FOOTER ===== -->
         <div class="report-footer">
             <div>
-                <strong>ASCLAM</strong> — Autodesk Monitor Platform
+                <strong>ACLM</strong> — Autodesk Monitor Platform
             </div>
             <div>
                 This report is confidential. Generated on {{ now()->format('l, d F Y \a\t H:i') }}.

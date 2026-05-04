@@ -1,12 +1,16 @@
 const { exec } = require('child_process');
 const os = require('os');
 const axios = require('axios');
+const crypto = require('crypto');
 
 // --- CONFIGURATION ---
 const CHECK_INTERVAL_MS    = 3000;      // Foreground check: every 3 seconds
 const BG_CHECK_INTERVAL_MS = 30000;    // Background apps check: every 30 seconds
-const API_URL              = 'http://192.168.0.200:8001/api/log-activity';
-const SETTINGS_API_URL     = 'http://192.168.0.200:8001/api/idle-threshold';
+const API_URL              = 'http://192.168.56.1:8001/api/log-activity';
+const SETTINGS_API_URL     = 'http://192.168.56.1:8001/api/idle-threshold';
+const AGENT_REGISTER_URL   = 'http://192.168.56.1:8001/api/agent/register';
+const AGENT_VALIDATE_URL   = 'http://192.168.56.1:8001/api/agent/validate';
+const LICENSE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // Re-validate every 6 hours
 
 // Idle threshold — fetched from server at startup, falls back to 60 minutes
 let IDLE_THRESHOLD_MS = 3600000;
@@ -172,6 +176,11 @@ function checkActiveWindow() {
                 timestamp:    timestamp
             };
 
+            if (!machineAuthorized) {
+                console.log(`[LICENSE] Machine not authorized — skipping log: ${appName}`);
+                return;
+            }
+
             axios.post(API_URL, payload)
                 .then(() => {
                     if (isIdle) {
@@ -197,6 +206,10 @@ function scanBackgroundApps() {
 
         getBackgroundAutodeskApps(activeProcessName, (bgApps) => {
             if (bgApps.length === 0) return;
+            if (!machineAuthorized) {
+                console.log('[LICENSE] Machine not authorized — skipping background scan.');
+                return;
+            }
 
             const timestamp = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace('T', ' '); })();
             console.log(`[MULTI]   Background apps detected: ${bgApps.map(a => a.name).join(', ')}`);
@@ -225,3 +238,84 @@ function scanBackgroundApps() {
 // ─── START MONITORING ─────────────────────────────────────────────────────────
 setInterval(checkActiveWindow, CHECK_INTERVAL_MS);       // Every 3s — foreground app
 setInterval(scanBackgroundApps, BG_CHECK_INTERVAL_MS);   // Every 60s — background apps
+
+// ─── MACHINE LICENSING ────────────────────────────────────────────────────────
+// Generates a stable fingerprint from hardware identifiers.
+// If MAC unavailable, falls back to hostname-only hash (still unique per machine).
+function getMachineFingerprint() {
+    try {
+        const interfaces = os.networkInterfaces();
+        const mac = Object.values(interfaces)
+            .flat()
+            .find(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')?.mac || 'nomac';
+        const raw = `${os.hostname()}|${os.cpus()[0]?.model || 'unknown'}|${mac}`;
+        return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32);
+    } catch (_) {
+        return crypto.createHash('sha256').update(os.hostname()).digest('hex').slice(0, 32);
+    }
+}
+
+const MACHINE_FINGERPRINT = getMachineFingerprint();
+let agentToken       = null;  // Stored in memory; re-fetched on restart
+let machineAuthorized = true; // Optimistic default — block only if explicitly revoked
+
+// Registers this machine with the license hub on startup.
+// If pending, monitoring continues (grace period). If revoked, monitoring halts.
+async function registerWithLicenseHub() {
+    try {
+        const res = await axios.post(AGENT_REGISTER_URL, {
+            machine_id:  MACHINE_FINGERPRINT,
+            hostname:    machineId,
+            license_key: null, // set this if deploying with a known license key
+        }, { timeout: 10000 });
+
+        const { status, agent_token } = res.data;
+
+        if (status === 'revoked') {
+            console.log('[LICENSE] Machine revoked. Monitoring halted. Contact administrator.');
+            machineAuthorized = false;
+            return;
+        }
+
+        if (status === 'active' && agent_token) {
+            agentToken = agent_token;
+            console.log('[LICENSE] Machine active and licensed.');
+        } else {
+            console.log(`[LICENSE] Machine status: ${status}. Monitoring continues in grace period.`);
+        }
+    } catch (err) {
+        console.log(`[LICENSE] Could not reach license hub — continuing offline: ${err.message}`);
+        // Offline: keep machineAuthorized = true (fail-open for network blips)
+    }
+}
+
+// Periodically re-validates authorization. Stops monitoring if revoked remotely.
+async function validateLicenseStatus() {
+    if (!agentToken) {
+        // No token yet — re-attempt registration
+        await registerWithLicenseHub();
+        return;
+    }
+
+    try {
+        const res = await axios.post(AGENT_VALIDATE_URL, {}, {
+            headers: { 'X-Agent-Token': agentToken },
+            timeout: 10000,
+        });
+
+        if (!res.data.authorized) {
+            console.log(`[LICENSE] Authorization lost (${res.data.status}). Monitoring halted.`);
+            machineAuthorized = false;
+        } else if (!machineAuthorized) {
+            console.log('[LICENSE] Authorization restored. Monitoring resumed.');
+            machineAuthorized = true;
+        }
+    } catch (err) {
+        console.log(`[LICENSE] Validation check failed — keeping current state: ${err.message}`);
+        // Network error: keep current machineAuthorized state (don't punish blips)
+    }
+}
+
+// Boot: register on startup, re-validate every 6 hours
+registerWithLicenseHub();
+setInterval(validateLicenseStatus, LICENSE_CHECK_INTERVAL_MS);

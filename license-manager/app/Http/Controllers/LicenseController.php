@@ -20,6 +20,10 @@ class LicenseController extends Controller
                             ->whereBetween('expires_at', [now(), now()->addDays(7)])
                             ->count();
 
+        // Seat allocation totals
+        $totalSeatsAllocated = (int) License::where('is_active', true)->sum('max_seats');
+        $totalSeatsUsed      = Activation::where('status', 'active')->count();
+
         // Tier breakdown for chart
         $tierBreakdown = License::selectRaw('tier, COUNT(*) as count')
                             ->groupBy('tier')
@@ -33,7 +37,8 @@ class LicenseController extends Controller
 
         return view('dashboard', compact(
             'totalLicenses','activeLicenses','lockedLicenses',
-            'expiredLicenses','expiringSoon','tierBreakdown','recentLicenses'
+            'expiredLicenses','expiringSoon','tierBreakdown','recentLicenses',
+            'totalSeatsAllocated','totalSeatsUsed'
         ));
     }
 
@@ -42,6 +47,7 @@ class LicenseController extends Controller
         $request->validate([
             'tier'          => 'required|in:7D,15D,1M,6M,1Y',
             'customer_name' => 'required|string|max:255',
+            'max_seats'     => 'nullable|integer|min:1|max:500',
         ]);
 
         $key = 'AEPRO-' . strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4));
@@ -50,11 +56,13 @@ class LicenseController extends Controller
             'license_key'   => $key,
             'customer_name' => $request->customer_name,
             'tier'          => $request->tier,
+            'max_seats'     => (int) ($request->max_seats ?? 1),
             'is_active'     => false,
             'expires_at'    => null,
         ]);
 
-        return back()->with('success', "License Key Generated: $key");
+        return back()->with('success', "✅ Key generated successfully: <strong>$key</strong>")
+                     ->with('generated_key', $key);
     }
 
     public function toggleLock($id)
@@ -138,17 +146,30 @@ class LicenseController extends Controller
             return response()->json(['status' => 'invalid', 'message' => 'License key not found.'], 404);
         }
 
-        // ── Hardware ID Lock: if already activated on a DIFFERENT hardware ──
-        if ($license->is_active && $license->hardware_id && $license->hardware_id !== $data['hardware_id']) {
-            return response()->json([
-                'status'  => 'hardware_mismatch',
-                'message' => 'This key is already locked to a different machine. Contact your administrator.',
-            ], 403);
-        }
-
         // ── Check not expired ──
         if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {
             return response()->json(['status' => 'expired', 'message' => 'This license key has expired.'], 403);
+        }
+
+        // ── Check if this machine is already activated under this license ──
+        $existingActivation = Activation::where('license_id', $license->id)
+            ->where('hardware_id', $data['hardware_id'])
+            ->first();
+
+        // ── Seat limit check: only block NEW machines, not re-activations ──
+        if (! $existingActivation) {
+            $usedSeats = Activation::where('license_id', $license->id)
+                ->whereIn('status', ['active', 'locked'])
+                ->count();
+
+            if ($usedSeats >= $license->max_seats) {
+                return response()->json([
+                    'status'      => 'seat_limit_exceeded',
+                    'message'     => "License seat limit reached. {$usedSeats} of {$license->max_seats} seats are in use. Contact your administrator to increase your allocation.",
+                    'seats_used'  => $usedSeats,
+                    'seats_limit' => $license->max_seats,
+                ], 403);
+            }
         }
 
         $days = match($license->tier) {
@@ -160,18 +181,15 @@ class LicenseController extends Controller
             default => 365,
         };
 
-        $expiresAt    = $license->expires_at ?? Carbon::now()->addDays($days);
-        $machineName  = $data['machine_id'] ?? $data['hardware_id'];  // hostname as display name
+        $expiresAt   = $license->expires_at ?? Carbon::now()->addDays($days);
+        $machineName = $data['machine_id'] ?? $data['hardware_id'];
 
         $license->update([
-            'is_active'    => true,
-            'expires_at'   => $expiresAt,
-            'machine_id'   => $machineName,    // hostname for display
-            'machine_name' => $machineName,    // same — friendly name
-            'hardware_id'  => $data['hardware_id'],  // MachineGUID — the real lock
+            'is_active'  => true,
+            'expires_at' => $expiresAt,
         ]);
 
-        // Create or update activation record — keyed on hardware_id
+        // Create or update activation record keyed on hardware_id
         $activation = Activation::firstOrCreate(
             [
                 'license_id'  => $license->id,
@@ -193,6 +211,10 @@ class LicenseController extends Controller
             'ip_address'   => $data['ip_address'] ?? $request->ip(),
         ]);
 
+        $usedSeats = Activation::where('license_id', $license->id)
+            ->whereIn('status', ['active', 'locked'])
+            ->count();
+
         return response()->json([
             'status'      => 'activated',
             'tier'        => $license->tier,
@@ -200,6 +222,8 @@ class LicenseController extends Controller
             'days_left'   => (int) Carbon::now()->diffInDays($expiresAt, false),
             'machine'     => $machineName,
             'hardware_id' => $data['hardware_id'],
+            'seats_used'  => $usedSeats,
+            'seats_limit' => $license->max_seats,
         ]);
     }
 
@@ -278,6 +302,21 @@ class LicenseController extends Controller
             return response()->json(['status' => 'hardware_mismatch'], 403);
         }
 
+        // ── Expiry check FIRST — before activation lookup ──────────
+        // This ensures an expired license always returns 'expired' even if
+        // the activation record is missing or has a mismatched hardware_id.
+        if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {
+            $daysExpired = (int) Carbon::now()->diffInDays($license->expires_at);
+            return response()->json([
+                'status'     => 'expired',
+                'message'    => 'License expired ' . $daysExpired . ' day(s) ago. Please renew.',
+                'expires_at' => $license->expires_at->toDateTimeString(),
+                'days_left'  => -$daysExpired,
+                'tier'       => $license->tier,
+                'customer_name' => $license->customer_name,
+            ], 403);
+        }
+
         $activation = Activation::where('license_id', $license->id)
             ->where('hardware_id', $data['hardware_id'])
             ->first();
@@ -288,11 +327,6 @@ class LicenseController extends Controller
 
         if ($activation->status === 'locked') {
             return response()->json(['status' => 'locked', 'message' => 'Machine locked by administrator.'], 403);
-        }
-
-        if ($license->expires_at && Carbon::now()->isAfter($license->expires_at)) {
-            $activation->update(['status' => 'expired']);
-            return response()->json(['status' => 'expired'], 403);
         }
 
         $activation->update(['last_pulse' => now()]);

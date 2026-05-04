@@ -1,5 +1,5 @@
-# ASCLAM — Full Installation Guide
-**Version:** ASCLAM v2  
+# ACLAM — Full Installation Guide
+**Version:** ACLAM v2  
 **Stack:** Laravel (Server) + HazeMonitor Agent (Client PCs)
 
 ---
@@ -86,13 +86,13 @@ Composer version 2.x.x
 Place the entire `laravel-app` folder somewhere permanent, for example:
 
 ```
-C:\ASCLAM\laravel-app\
+C:\ACLAM\laravel-app\
 ```
 
 Open **Command Prompt** and navigate into it:
 
 ```cmd
-cd C:\ASCLAM\laravel-app
+cd C:\ACLAM\laravel-app
 ```
 
 Install PHP dependencies:
@@ -135,10 +135,10 @@ Query OK, 1 row affected (0.01 sec)
 
 ### Step 5 — Configure the .env File
 
-Inside `C:\ASCLAM\laravel-app\`, open the `.env` file in Notepad and update these lines:
+Inside `C:\ACLAM\laravel-app\`, open the `.env` file in Notepad and update these lines:
 
 ```env
-APP_NAME=ASCLAM
+APP_NAME=ACLAM
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=http://YOUR_SERVER_IP:8001
@@ -156,7 +156,7 @@ MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-gmail-app-password
 MAIL_FROM_ADDRESS="monitor@yourcompany.com"
-MAIL_FROM_NAME="ASCLAM Monitor"
+MAIL_FROM_NAME="ACLAM Monitor"
 
 HR_EMAIL=hr@yourcompany.com
 ```
@@ -167,7 +167,7 @@ HR_EMAIL=hr@yourcompany.com
 
 ### Step 6 — Run Database Migrations
 
-In **Command Prompt** inside `C:\ASCLAM\laravel-app\`:
+In **Command Prompt** inside `C:\ACLAM\laravel-app\`:
 
 ```cmd
 php artisan migrate --force
@@ -263,7 +263,7 @@ Expected output:
 
 > ✅ The server is now running. Open a browser and go to:
 > `http://YOUR_SERVER_IP:8001`
-> You should see the ASCLAM login page.
+> You should see the ACLAM login page.
 
 ---
 
@@ -288,23 +288,23 @@ Extract `nssm-2.24.zip` → copy `nssm.exe` to `C:\Windows\System32\`
 Open **Command Prompt as Administrator** and run:
 
 ```cmd
-nssm install ASCLAM-Server
+nssm install ACLAM-Server
 ```
 
 A GUI window opens — fill in:
 - **Path:** `C:\php\php.exe`  *(or wherever PHP is installed — check with `where php`)*
-- **Startup directory:** `C:\ASCLAM\laravel-app`
+- **Startup directory:** `C:\ACLAM\laravel-app`
 - **Arguments:** `artisan serve --host=0.0.0.0 --port=8001`
 
 Click **Install Service**, then:
 
 ```cmd
-nssm start ASCLAM-Server
+nssm start ACLAM-Server
 ```
 
 Expected output:
 ```
-ASCLAM-Server: START: The operation completed successfully.
+ACLAM-Server: START: The operation completed successfully.
 ```
 
 > Now the dashboard starts automatically every time the server PC boots.
@@ -316,7 +316,7 @@ ASCLAM-Server: START: The operation completed successfully.
 Open **Command Prompt as Administrator**:
 
 ```cmd
-netsh advfirewall firewall add rule name="ASCLAM Dashboard" dir=in action=allow protocol=TCP localport=8001
+netsh advfirewall firewall add rule name="ACLAM Dashboard" dir=in action=allow protocol=TCP localport=8001
 ```
 
 Expected output:
@@ -442,7 +442,7 @@ If `hazemonitor.exe` is in the list — ✅ the agent is running.
 
 ## PART 3 — QUICK REFERENCE COMMANDS
 
-### Server Commands (Run inside `C:\ASCLAM\laravel-app`)
+### Server Commands (Run inside `C:\ACLAM\laravel-app`)
 
 | What to do | Command |
 |---|---|
@@ -542,12 +542,12 @@ Right-click  protect_server.bat  →  Run as Administrator
 Open **Command Prompt as Administrator** on the server and run:
 
 ```cmd
-icacls "C:\ASCLAM\laravel-app"
+icacls "C:\ACLAM\laravel-app"
 ```
 
 Expected output:
 ```
-C:\ASCLAM\laravel-app SYSTEM:(OI)(CI)(F)
+C:\ACLAM\laravel-app SYSTEM:(OI)(CI)(F)
                        Administrators:(OI)(CI)(F)
                        Everyone:(OI)(CI)(DENY)(R,RD,RA,REA,RC,RX)
                        Users:(OI)(CI)(DENY)(R,RD,RA,REA,RC,RX)
@@ -556,12 +556,12 @@ C:\ASCLAM\laravel-app SYSTEM:(OI)(CI)(F)
 Check the `.env` file specifically:
 
 ```cmd
-icacls "C:\ASCLAM\laravel-app\.env"
+icacls "C:\ACLAM\laravel-app\.env"
 ```
 
 Expected output:
 ```
-C:\ASCLAM\laravel-app\.env SYSTEM:(F)
+C:\ACLAM\laravel-app\.env SYSTEM:(F)
                             Administrators:(F)
                             Everyone:(DENY)(R,RA,REA,RC,RX)
                             Users:(DENY)(R,RA,REA,RC,RX)
@@ -575,7 +575,7 @@ If you see `DENY` entries — credentials are fully protected. ✅
 
 | What they try | What happens |
 |---|---|
-| Open `C:\ASCLAM` in File Explorer | Folder is hidden — invisible |
+| Open `C:\ACLAM` in File Explorer | Folder is hidden — invisible |
 | Copy the `laravel-app` folder | **Access is denied** |
 | Open or read the `.env` file | **Access is denied** — passwords stay sealed |
 | Copy the MySQL database files directly | **Access is denied** |
@@ -670,7 +670,7 @@ If you see `DENY` entries for Users and Everyone — the protection is active. �
 | Date | Old Name | New Name |
 |---|---|---|
 | 2026-04-12 | ArchEng Pro Monitor | ARCHLAM |
-| 2026-04-17 | ARCHLAM | ASCLAM |
+| 2026-04-17 | ARCHLAM | ACLAM |
 
 ---
 

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCLAM | Report Hub</title>
+    <title>ACLM | Report Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -219,11 +219,12 @@
 </head>
 
 <body>
+
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo-container">
             <div class="logo-icon"><i class="fas fa-compass-drafting"></i></div>
-            <span class="logo-text">ASCLAM</span>
+            <span class="logo-text">ACLM</span>
         </div>
         <ul class="nav-menu">
             <li class="nav-section-title">Main Monitoring</li>
@@ -331,6 +332,8 @@
                     </span>
                 </div>
             </div>
+            @include('partials.license_sidebar_widget')
+
             <form action="{{ route('logout') }}" method="POST" style="margin-top: 15px;">
                 @csrf
                 <button type="submit"
@@ -363,6 +366,8 @@
             </div>
         </header>
 
+        @include('partials.license_status_banner')
+
         <main class="content-area">
             <header class="page-header" style="margin-bottom: 0;">
                 <div class="page-title">
@@ -385,16 +390,48 @@
                     </h2>
                     <p class="sub">Choose the date range and filters for your report.</p>
 
-                    <form action="{{ route('report.generate') }}" method="GET" target="_blank">
+                    <form action="{{ route('report.generate') }}" method="GET" target="_blank" id="reportForm">
                         <div class="form-group-row">
-                            <div>
+                            <div style="width:100%;">
                                 <label class="field-label">Time Period</label>
-                                <select name="days" class="field-input">
-                                    <option value="7">Last 7 Days</option>
-                                    <option value="30" selected>Last 30 Days</option>
-                                    <option value="60">Last 60 Days</option>
-                                    <option value="90">Last 90 Days</option>
-                                </select>
+                                {{-- Toggle tabs --}}
+                                <div style="display:flex;gap:0;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;margin-bottom:10px;">
+                                    <button type="button" id="tab-preset" onclick="switchTab('preset')"
+                                        style="flex:1;padding:8px 0;font-size:12px;font-weight:600;border:none;cursor:pointer;background:rgba(59,130,246,0.15);color:#3b82f6;">
+                                        Preset Range
+                                    </button>
+                                    <button type="button" id="tab-custom" onclick="switchTab('custom')"
+                                        style="flex:1;padding:8px 0;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--text-secondary);">
+                                        Custom Range
+                                    </button>
+                                </div>
+                                {{-- Preset panel --}}
+                                <div id="panel-preset">
+                                    <select name="days" id="daysSelect" class="field-input">
+                                        <option value="7">Last 7 Days</option>
+                                        <option value="30" selected>Last 30 Days</option>
+                                        <option value="60">Last 60 Days</option>
+                                        <option value="90">Last 90 Days</option>
+                                    </select>
+                                </div>
+                                {{-- Custom date range panel --}}
+                                <div id="panel-custom" style="display:none;">
+                                    <div style="display:flex;gap:10px;align-items:center;">
+                                        <div style="flex:1;">
+                                            <span style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;">From</span>
+                                            <input type="date" id="fromDate" name="from" class="field-input"
+                                                style="margin-top:4px;"
+                                                max="{{ date('Y-m-d') }}">
+                                        </div>
+                                        <div style="flex:1;">
+                                            <span style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;">To</span>
+                                            <input type="date" id="toDate" name="to" class="field-input"
+                                                style="margin-top:4px;"
+                                                value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}">
+                                        </div>
+                                    </div>
+                                    <p id="customRangeNote" style="font-size:11px;color:var(--text-secondary);margin-top:6px;"></p>
+                                </div>
                             </div>
                             <div>
                                 <label class="field-label">Department Filter</label>
@@ -494,6 +531,56 @@
         // Sidebar
         document.getElementById('sidebarToggle').addEventListener('click', () => {
             document.querySelector('.sidebar').classList.toggle('collapsed');
+        });
+
+        // Custom date range tab switcher
+        function switchTab(tab) {
+            const isCustom = tab === 'custom';
+            document.getElementById('panel-preset').style.display = isCustom ? 'none' : 'block';
+            document.getElementById('panel-custom').style.display  = isCustom ? 'block' : 'none';
+
+            // Disable the inactive fields so they are not submitted
+            document.getElementById('daysSelect').disabled = isCustom;
+            document.getElementById('fromDate').disabled   = !isCustom;
+            document.getElementById('toDate').disabled     = !isCustom;
+
+            document.getElementById('tab-preset').style.background = isCustom ? 'transparent' : 'rgba(59,130,246,0.15)';
+            document.getElementById('tab-preset').style.color      = isCustom ? 'var(--text-secondary)' : '#3b82f6';
+            document.getElementById('tab-custom').style.background = isCustom ? 'rgba(59,130,246,0.15)' : 'transparent';
+            document.getElementById('tab-custom').style.color      = isCustom ? '#3b82f6' : 'var(--text-secondary)';
+        }
+
+        // Keep "to" date ≥ "from" date and show range summary
+        document.getElementById('fromDate').addEventListener('change', updateRangeNote);
+        document.getElementById('toDate').addEventListener('change', updateRangeNote);
+
+        function updateRangeNote() {
+            const from = document.getElementById('fromDate').value;
+            const to   = document.getElementById('toDate').value;
+            const note = document.getElementById('customRangeNote');
+            if (!from || !to) { note.textContent = ''; return; }
+            if (from > to) {
+                document.getElementById('toDate').value = from;
+            }
+            const days = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
+            note.textContent = `${days} day${days !== 1 ? 's' : ''} selected`;
+        }
+
+        // Init — presets active by default, custom inputs disabled
+        document.getElementById('fromDate').disabled = true;
+        document.getElementById('toDate').disabled   = true;
+
+        // Prevent submitting empty custom range
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            const isCustom = document.getElementById('panel-custom').style.display !== 'none';
+            if (isCustom) {
+                const from = document.getElementById('fromDate').value;
+                const to   = document.getElementById('toDate').value;
+                if (!from || !to) {
+                    e.preventDefault();
+                    alert('Please select both From and To dates for the custom range.');
+                }
+            }
         });
     </script>
 </body>

@@ -144,6 +144,15 @@
         .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.6;transform:scale(1.3);} }
 
+        /* ── Seat Utilization Bar ── */
+        .seat-bar-wrap { margin-top: 10px; }
+        .seat-bar-track { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-top: 6px; }
+        .seat-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+        .seat-bar-fill.ok   { background: linear-gradient(90deg, #10b981, #34d399); }
+        .seat-bar-fill.warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .seat-bar-fill.full { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .seat-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
         /* ── Metric Cards ── */
         .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
         .metric {
@@ -478,6 +487,51 @@
             </div>
         </div>
 
+        <!-- Seat Utilization Banner -->
+        @php
+            $seatPct = $totalSeatsAllocated > 0 ? round($totalSeatsUsed / $totalSeatsAllocated * 100) : 0;
+            $seatClass = $seatPct >= 90 ? 'full' : ($seatPct >= 70 ? 'warn' : 'ok');
+        @endphp
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header" style="margin-bottom:12px;">
+                <div class="card-title"><i class="fas fa-users"></i> Installation Seat Utilization</div>
+                <span style="font-size:11px;color:var(--muted);">Across all active company licenses</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:14px;">
+                <div style="text-align:center;padding:14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
+                    <div style="font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#818cf8;">{{ $totalSeatsAllocated }}</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600;">Seats Allocated</div>
+                </div>
+                <div style="text-align:center;padding:14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
+                    <div style="font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;color:{{ $seatClass === 'full' ? '#f87171' : ($seatClass === 'warn' ? '#fbbf24' : '#34d399') }};">{{ $totalSeatsUsed }}</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600;">Seats Installed</div>
+                </div>
+                <div style="text-align:center;padding:14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
+                    <div style="font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#60a5fa;">{{ max(0, $totalSeatsAllocated - $totalSeatsUsed) }}</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600;">Seats Available</div>
+                </div>
+            </div>
+            <div class="seat-bar-wrap">
+                <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px;">
+                    <span style="color:var(--text);">{{ $seatPct }}% seats in use</span>
+                    @if($seatClass === 'full')
+                        <span style="color:#f87171;font-weight:700;"><i class="fas fa-circle-exclamation"></i> Limit reached — new installs will be blocked</span>
+                    @elseif($seatClass === 'warn')
+                        <span style="color:#fbbf24;font-weight:700;"><i class="fas fa-triangle-exclamation"></i> Approaching limit</span>
+                    @else
+                        <span style="color:#34d399;font-weight:700;"><i class="fas fa-circle-check"></i> Healthy</span>
+                    @endif
+                </div>
+                <div class="seat-bar-track">
+                    <div class="seat-bar-fill {{ $seatClass }}" style="width:{{ $seatPct }}%;"></div>
+                </div>
+                <div class="seat-label">
+                    <span>0 seats</span>
+                    <span>{{ $totalSeatsAllocated }} seats max</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Expiry Warnings -->
         @if ($expiringSoon > 0)
         <div class="expiry-alert warn">
@@ -510,13 +564,36 @@
                     @csrf
                     <input type="hidden" name="tier" id="tierInput" value="1Y">
 
+                    @if ($errors->any())
+                    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:#f87171;">
+                        <i class="fas fa-circle-exclamation" style="margin-right:6px;"></i>
+                        {{ $errors->first() }}
+                    </div>
+                    @endif
+
                     <div class="form-group">
                         <label class="form-label">Customer / Company Name</label>
                         <div style="position:relative;">
                             <i class="fas fa-building" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;"></i>
                             <input type="text" name="customer_name" class="form-input"
                                 placeholder="e.g. Al Habtoor Engineering"
-                                style="padding-left:34px;" required>
+                                value="{{ old('customer_name') }}"
+                                style="padding-left:34px;{{ $errors->has('customer_name') ? 'border-color:#ef4444;' : '' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">User Seats (Max Installations)</label>
+                        <div style="position:relative;">
+                            <i class="fas fa-users" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;"></i>
+                            <input type="number" name="max_seats" class="form-input"
+                                placeholder="e.g. 10"
+                                min="1" max="500" value="{{ old('max_seats', 1) }}"
+                                style="padding-left:34px;{{ $errors->has('max_seats') ? 'border-color:#ef4444;' : '' }}" required>
+                        </div>
+                        <div style="font-size:10px;color:var(--muted);margin-top:5px;">
+                            <i class="fas fa-circle-info" style="margin-right:3px;"></i>
+                            How many PCs can install the software (1–500). Exceeding this blocks new installs.
                         </div>
                     </div>
 
@@ -551,14 +628,11 @@
                     </button>
                 </form>
 
-                @if (session('success') && str_contains(session('success'), 'AEPRO-'))
-                    @php preg_match('/AEPRO-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+/', session('success'), $m); @endphp
-                    @if (!empty($m))
-                    <div class="key-highlight">
+                @if (session('generated_key'))
+                    <div class="key-highlight" style="margin-top:14px;">
                         <div class="key-highlight-label"><i class="fas fa-copy" style="margin-right:4px;"></i> Click to copy</div>
-                        <div class="key-mono" onclick="copyKey('{{ $m[0] }}')">{{ $m[0] }}</div>
+                        <div class="key-mono" onclick="copyKey('{{ session('generated_key') }}')">{{ session('generated_key') }}</div>
                     </div>
-                    @endif
                 @endif
             </div>
 

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCLAM | Settings</title>
+    <title>ACLM | Settings</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -152,7 +152,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ASCLAM</span>
+            <span class="logo-text">ACLM</span>
         </div>
 
         <ul class="nav-menu">
@@ -254,6 +254,8 @@
                 </div>
             </div>
 
+            @include('partials.license_sidebar_widget')
+
             <form action="{{ route('logout') }}" method="POST" style="margin-top: 15px;">
                 @csrf
                 <button type="submit"
@@ -283,6 +285,8 @@
                 </button>
             </div>
         </header>
+
+        @include('partials.license_status_banner')
 
         <main class="content-area">
             <header class="page-header">
@@ -587,7 +591,7 @@
                                     <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); display: block; margin-bottom: 6px;">Display Name</label>
                                     <input type="text" name="mail_from_name"
                                         value="{{ $emailSettings['mail_from_name'] }}"
-                                        placeholder="ASCLAM Monitor"
+                                        placeholder="ACLM Monitor"
                                         style="width: 100%; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 13px; font-family: 'Outfit', sans-serif; box-sizing: border-box;"
                                         required>
                                 </div>
@@ -621,7 +625,7 @@
                             </div>
 
                             {{-- Row 6: Team Leader (Contract Manager) report toggle --}}
-                            <div style="margin-bottom: 16px; padding: 12px 14px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px;">
+                            <div style="margin-bottom: 12px; padding: 12px 14px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px;">
                                 <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
                                     <input type="checkbox" name="notify_team_leaders" value="1"
                                         {{ ($emailSettings['notify_team_leaders'] ?? false) ? 'checked' : '' }}
@@ -634,6 +638,25 @@
                                             When enabled, each Contract Manager automatically receives a weekly report
                                             covering <strong>only their assigned team members</strong> — sent to the email
                                             address stored in their account profile.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            {{-- Row 7: Individual user report toggle --}}
+                            <div style="margin-bottom: 16px; padding: 12px 14px; background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.2); border-radius: 10px;">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                    <input type="checkbox" name="notify_individual_users" value="1"
+                                        {{ ($emailSettings['notify_individual_users'] ?? false) ? 'checked' : '' }}
+                                        style="margin-top: 3px; width: 15px; height: 15px; accent-color: #10b981; flex-shrink: 0;">
+                                    <span>
+                                        <span style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">
+                                            Send individual performance report to each user
+                                        </span>
+                                        <span style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+                                            When enabled, every monitored user receives a weekly personal report showing
+                                            their own activity — sent to their registered email address, CC'd to their
+                                            Team Leader.
                                         </span>
                                     </span>
                                 </label>

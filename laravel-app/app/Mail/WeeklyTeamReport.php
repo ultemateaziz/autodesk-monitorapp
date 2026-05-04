@@ -24,17 +24,18 @@ class WeeklyTeamReport extends Mailable
         public Collection  $userStats,
         public int         $totalTeamHours,
         public string      $hrEmail,
+        public string      $periodLabel = 'Weekly',
     ) {}
 
     public function envelope(): Envelope
     {
         $envelope = new Envelope(
             from: new Address(
-                config('mail.from.address', 'system@asclam.com'),
-                config('mail.from.name',    'ASCLAM Monitor')
+                config('mail.from.address', 'system@aclam.com'),
+                config('mail.from.name',    'ACLAM Monitor')
             ),
             to:      [$this->hrEmail],
-            subject: "Weekly Performance Report — {$this->department} | {$this->weekLabel}",
+            subject: "{$this->periodLabel} Performance Report — {$this->department} | {$this->weekLabel}",
         );
 
         // Only CC the team leader if the admin has enabled the toggle

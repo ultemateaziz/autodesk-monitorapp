@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\SettingsController;
 use App\Mail\IndividualUserReport;
 use App\Models\ActivityLog;
 use App\Models\User;
@@ -16,6 +17,12 @@ class SendIndividualReports extends Command
 
     public function handle(): void
     {
+        $appSettings = SettingsController::getAllSettings();
+        if (!($appSettings['notify_individual_users'] ?? false)) {
+            $this->warn('Individual user reports are disabled in settings — skipping.');
+            return;
+        }
+
         $hrEmail = config('app.hr_email');
         $hrName  = config('mail.from.name', 'ArchEng Pro HR');
 

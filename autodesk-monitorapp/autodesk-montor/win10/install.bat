@@ -16,7 +16,7 @@ if %errorLevel% neq 0 (
 
 echo.
 echo  =====================================================
-echo   Installing ASCLAM Monitor - Windows 10 Edition
+echo   Installing ACLAM Monitor - Windows 10 Edition
 echo  =====================================================
 echo.
 
@@ -72,7 +72,6 @@ schtasks /delete /tn "AutodeskMonitorAgent" /f >nul 2>&1
 schtasks /create /tn "AutodeskMonitorAgent" ^
     /tr "wscript.exe \"C:\AutodeskMonitor\start_silent.vbs\"" ^
     /sc onlogon ^
-    /rl highest ^
     /f
 
 if %errorlevel% neq 0 (
@@ -93,7 +92,7 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" ^
 
 echo.
 echo  =====================================================
-echo   SUCCESS! ASCLAM Monitor installed.
+echo   SUCCESS! ACLAM Monitor installed.
 echo.
 echo   - Auto-starts on every login (scheduled task)
 echo   - Registry backup also added as safety net

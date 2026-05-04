@@ -25,15 +25,25 @@ class ReportController extends Controller
      */
     public function generate(Request $request)
     {
-        $days   = (int) $request->get('days', 30);
         $dept   = $request->get('department', 'all');
 
         // Force team_leader to their own department
         if (auth()->user()->role === 'team_leader') {
             $dept = auth()->user()->department ?: 'unassigned';
         }
-        $from   = now()->subDays($days)->startOfDay();
-        $to     = now()->endOfDay();
+
+        // Custom date range takes priority over preset days
+        $fromInput = $request->get('from');
+        $toInput   = $request->get('to');
+        if ($fromInput && $toInput) {
+            $from = Carbon::parse($fromInput)->startOfDay();
+            $to   = Carbon::parse($toInput)->endOfDay();
+            $days = max(1, (int) $from->diffInDays($to) + 1);
+        } else {
+            $days = (int) $request->get('days', 30);
+            $from = now()->subDays($days)->startOfDay();
+            $to   = now()->endOfDay();
+        }
 
         // ------- Authorized Users -------
         $authorizedUsernames = null;
@@ -202,17 +212,18 @@ class ReportController extends Controller
             }
         }
 
-        // ------- 7. Daily usage trend (last N days) -------
-        $trendDays  = min($days, 30);
+        // ------- 7. Daily usage trend (capped at 30 points, spread across actual range) -------
+        $trendDays   = min($days, 30);
         $trendLabels = [];
         $trendValues = [];
+        $rangeStart  = $to->copy()->subDays($trendDays - 1)->max($from);
         for ($i = $trendDays - 1; $i >= 0; $i--) {
-            $day  = now()->subDays($i)->toDateString();
-            $cnt  = ActivityLog::whereDate('recorded_at', $day)
+            $day = $to->copy()->subDays($i)->toDateString();
+            $cnt = ActivityLog::whereDate('recorded_at', $day)
                 ->when($authorizedUsernames, fn($q) => $q->whereIn('user_name', $authorizedUsernames))
                 ->count();
-            $trendLabels[] = now()->subDays($i)->format('d M');
-            $trendValues[] = round($cnt * 3 / 3600, 1); // hours
+            $trendLabels[] = $to->copy()->subDays($i)->format('d M');
+            $trendValues[] = round($cnt * 3 / 3600, 1);
         }
 
         return view('report_pdf', compact(

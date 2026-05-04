@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCLAM | Audit Trail</title>
+    <title>ACLM | Audit Trail</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -116,7 +116,7 @@
     <aside class="sidebar">
         <div class="logo-container">
             <div class="logo-icon"><i class="fas fa-compass-drafting"></i></div>
-            <span class="logo-text">ASCLAM</span>
+            <span class="logo-text">ACLM</span>
         </div>
         <ul class="nav-menu">
             <li class="nav-section-title">Main Monitoring</li>
@@ -220,6 +220,8 @@
                     </span>
                 </div>
             </div>
+            @include('partials.license_sidebar_widget')
+
             <form action="{{ route('logout') }}" method="POST" style="margin-top: 15px;">
                 @csrf
                 <button type="submit"
@@ -250,6 +252,8 @@
                 </button>
             </div>
         </header>
+
+        @include('partials.license_status_banner')
 
         <main class="content-area">
             <header class="page-header">

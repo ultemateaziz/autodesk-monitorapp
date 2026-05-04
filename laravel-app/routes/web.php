@@ -8,6 +8,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LicenseActivationController;
+use App\Http\Controllers\AgentLicenseController;
 use Illuminate\Support\Facades\Route;
 
 // Public API for monitor clients
@@ -68,5 +69,15 @@ Route::middleware(['auth', \App\Http\Middleware\CheckLicenseActivated::class])->
     // Notifications
     Route::post('/dismiss-notification', [DashboardController::class, 'dismissNotification'])->name('notification.dismiss');
 
+    // Machine Licensing Hub
+    Route::get('/machine-licensing', [AgentLicenseController::class, 'index'])->name('machine.licensing');
+    Route::post('/machine-licensing/{id}/approve', [AgentLicenseController::class, 'approve'])->name('machine.licensing.approve');
+    Route::post('/machine-licensing/{id}/revoke', [AgentLicenseController::class, 'revoke'])->name('machine.licensing.revoke');
+    Route::delete('/machine-licensing/{id}', [AgentLicenseController::class, 'destroy'])->name('machine.licensing.destroy');
+
     Route::get('/profile/{userName?}', [ProfileController::class, 'index'])->name('profile');
+    Route::get('/profile/{userName}/export-pdf',      [ProfileController::class, 'exportPdf'])->name('profile.export.pdf');
+    Route::get('/profile/{userName}/export-excel',    [ProfileController::class, 'exportExcel'])->name('profile.export.excel');
+    Route::get('/profile/{userName}/export-sessions',     [ProfileController::class, 'exportSessionReport'])->name('profile.export.sessions');
+    Route::get('/profile/{userName}/export-sessions-pdf', [ProfileController::class, 'exportSessionPdf'])->name('profile.export.sessions.pdf');
 });

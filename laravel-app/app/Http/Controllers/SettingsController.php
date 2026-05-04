@@ -125,7 +125,8 @@ class SettingsController extends Controller
 
         // Save the team leader notification toggle to settings JSON
         $settings = self::getAllSettings();
-        $settings['notify_team_leaders'] = $request->has('notify_team_leaders');
+        $settings['notify_team_leaders']    = $request->has('notify_team_leaders');
+        $settings['notify_individual_users'] = $request->has('notify_individual_users');
         file_put_contents(
             storage_path('app/archlam_settings.json'),
             json_encode($settings, JSON_PRETTY_PRINT)
@@ -144,7 +145,7 @@ class SettingsController extends Controller
         }
 
         $recipient = auth()->user()->email;
-        $appName   = config('app.name', 'ASCLAM');
+        $appName   = config('app.name', 'ACLAM');
 
         try {
             Mail::raw(
@@ -206,9 +207,10 @@ class SettingsController extends Controller
             'mail_username'        => env('MAIL_USERNAME', ''),
             'mail_password'        => env('MAIL_PASSWORD', ''),
             'mail_from_address'    => str_replace('"', '', env('MAIL_FROM_ADDRESS', '')),
-            'mail_from_name'       => str_replace('"', '', env('MAIL_FROM_NAME', 'ASCLAM')),
+            'mail_from_name'       => str_replace('"', '', env('MAIL_FROM_NAME', 'ACLAM')),
             'hr_email'             => env('HR_EMAIL', ''),
-            'notify_team_leaders'  => $settings['notify_team_leaders'] ?? false,
+            'notify_team_leaders'    => $settings['notify_team_leaders'] ?? false,
+            'notify_individual_users' => $settings['notify_individual_users'] ?? false,
         ];
     }
 

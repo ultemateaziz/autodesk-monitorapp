@@ -84,6 +84,12 @@
         .expiry-warn { color: #f87171; font-size: 12px; }
         .expiry-ok   { color: var(--muted); font-size: 12px; }
 
+        .seat-mini-bar { height: 5px; border-radius: 3px; background: var(--border); width: 80px; overflow: hidden; margin-top: 4px; }
+        .seat-mini-fill { height: 100%; border-radius: 3px; }
+        .seat-mini-fill.ok   { background: #10b981; }
+        .seat-mini-fill.warn { background: #f59e0b; }
+        .seat-mini-fill.full { background: #ef4444; }
+
         .empty { text-align: center; padding: 60px 0; color: var(--muted); }
         .empty i { font-size: 40px; opacity: 0.3; margin-bottom: 14px; display: block; }
 
@@ -185,10 +191,10 @@
                                 <th>License Key</th>
                                 <th>Tier</th>
                                 <th>Status</th>
-                                <th>Machine ID</th>
+                                <th>Seats</th>
+                                <th>Machines</th>
                                 <th>Expires</th>
                                 <th>Days Left</th>
-                                <th>Activations</th>
                                 <th>Created</th>
                                 <th>Actions</th>
                             </tr>
@@ -196,8 +202,13 @@
                         <tbody>
                             @foreach ($licenses as $lic)
                                 @php
-                                    $daysLeft = $lic->expires_at ? now()->diffInDays($lic->expires_at, false) : null;
+                                    $daysLeft  = $lic->expires_at ? now()->diffInDays($lic->expires_at, false) : null;
                                     $isExpired = $lic->expires_at && now()->isAfter($lic->expires_at);
+                                    $maxSeats  = $lic->max_seats ?? 1;
+                                    $usedSeats = $lic->activations_count;
+                                    $availSeats = max(0, $maxSeats - $usedSeats);
+                                    $seatPct   = $maxSeats > 0 ? min(100, round($usedSeats / $maxSeats * 100)) : 0;
+                                    $seatCls   = $seatPct >= 100 ? 'full' : ($seatPct >= 70 ? 'warn' : 'ok');
                                 @endphp
                                 <tr>
                                     <td style="color:var(--muted);font-size:12px;">{{ $lic->id }}</td>
@@ -228,8 +239,30 @@
                                             <span class="badge badge-inactive"><i class="fas fa-circle" style="font-size:6px;"></i> Unused</span>
                                         @endif
                                     </td>
-                                    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);">
-                                        {{ $lic->machine_id ?? '—' }}
+                                    {{-- Seats: allocated / used with mini progress bar --}}
+                                    <td>
+                                        <div style="min-width:90px;">
+                                            <div style="font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;">
+                                                <span style="color:{{ $seatCls === 'full' ? '#f87171' : ($seatCls === 'warn' ? '#fbbf24' : '#34d399') }};">{{ $usedSeats }}</span>
+                                                <span style="color:var(--muted);">/{{ $maxSeats }}</span>
+                                            </div>
+                                            <div class="seat-mini-bar">
+                                                <div class="seat-mini-fill {{ $seatCls }}" style="width:{{ $seatPct }}%;"></div>
+                                            </div>
+                                            <div style="font-size:10px;color:var(--muted);margin-top:3px;">{{ $availSeats }} free</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if ($lic->activations->isEmpty())
+                                            <span style="color:var(--muted);font-size:12px;">—</span>
+                                        @else
+                                            @foreach ($lic->activations as $a)
+                                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                                                    <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:{{ $a->status === 'active' ? '#10b981' : ($a->status === 'locked' ? '#ef4444' : '#f59e0b') }};"></span>
+                                                    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);">{{ $a->machine_name ?? $a->machine_id ?? $a->hardware_id }}</span>
+                                                </div>
+                                            @endforeach
+                                        @endif
                                     </td>
                                     <td>
                                         @if ($lic->expires_at)
@@ -248,11 +281,6 @@
                                         @else
                                             <span style="color:var(--muted);">—</span>
                                         @endif
-                                    </td>
-                                    <td>
-                                        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">
-                                            {{ $lic->activations_count }}
-                                        </span>
                                     </td>
                                     <td style="color:var(--muted);font-size:12px;">
                                         {{ $lic->created_at->format('d M Y') }}

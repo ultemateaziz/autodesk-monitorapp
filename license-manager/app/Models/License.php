@@ -11,11 +11,12 @@ class License extends Model
         'license_key',
         'customer_name',
         'tier',
+        'max_seats',
         'is_active',
         'expires_at',
-        'machine_id',    // os.hostname()
-        'machine_name',  // friendly name
-        'hardware_id',   // Windows MachineGUID — the real hardware lock
+        'machine_id',
+        'machine_name',
+        'hardware_id',
     ];
 
     protected $casts = [

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCLAM | User Productivity Insight</title>
+    <title>ACLM | User Productivity Insight</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -134,7 +134,8 @@
         .chart-controls {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .date-range-group {
@@ -148,6 +149,37 @@
             color: var(--text-primary);
             font-size: 13px;
             font-weight: 500;
+        }
+
+        /* Preset date range buttons */
+        .preset-btn {
+            background: var(--bg-card-navy);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-navy);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+            font-family: 'Outfit', sans-serif;
+        }
+        .preset-btn:hover {
+            background: rgba(99,102,241,0.12);
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+        .preset-btn.active {
+            background: rgba(99,102,241,0.18);
+            border-color: #6366f1;
+            color: #6366f1;
+            font-weight: 700;
+        }
+        .preset-divider {
+            width: 1px; height: 28px;
+            background: var(--border-navy);
+            opacity: 0.5;
         }
 
         .btn-live-tracking {
@@ -291,7 +323,7 @@
             <div class="logo-icon">
                 <i class="fas fa-compass-drafting"></i>
             </div>
-            <span class="logo-text">ASCLAM</span>
+            <span class="logo-text">ACLM</span>
         </div>
 
         <ul class="nav-menu">
@@ -401,6 +433,7 @@
                     </span>
                 </div>
             </div>
+            @include('partials.license_sidebar_widget')
         </div>
     </aside>
 
@@ -414,10 +447,143 @@
             </div>
 
             <div class="topbar-actions">
-                <button class="btn-primary" style="background-color: #3b82f6;">
-                    <i class="fas fa-download"></i>
-                    <span>Export Report</span>
-                </button>
+                {{-- Export dropdown --}}
+                <div style="position:relative; display:inline-block;" id="exportDropdownWrap">
+                    <button onclick="document.getElementById('exportDropdown').classList.toggle('open')"
+                        style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                        <i class="fas fa-download"></i>
+                        Export
+                        <i class="fas fa-chevron-down" style="font-size:10px;opacity:0.7;"></i>
+                    </button>
+                    <div id="exportDropdown"
+                        style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:var(--bg-card-navy);border:1px solid var(--border-navy);border-radius:12px;padding:6px;min-width:200px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+
+                        <div style="padding:6px 10px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);opacity:0.7;">
+                            Period: {{ $startDate }} → {{ $endDate }}
+                        </div>
+
+                        {{-- PDF presets --}}
+                        <div style="padding:6px 10px 3px;font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.8px;">
+                            <i class="fas fa-file-pdf" style="margin-right:4px;"></i>PDF
+                        </div>
+                        <a href="{{ route('profile.export.pdf', ['userName' => $userName, 'from' => date('Y-m-d'), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-day" style="color:#ef4444;width:14px;"></i> Today
+                        </a>
+                        <a href="{{ route('profile.export.pdf', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-6 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-week" style="color:#ef4444;width:14px;"></i> Last 7 Days
+                        </a>
+                        <a href="{{ route('profile.export.pdf', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-29 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-alt" style="color:#ef4444;width:14px;"></i> Last 30 Days
+                        </a>
+                        <a href="{{ route('profile.export.pdf', ['userName' => $userName, 'from' => $startDate, 'to' => $endDate]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-sliders-h" style="color:#ef4444;width:14px;"></i> Current View
+                        </a>
+
+                        <div style="height:1px;background:var(--border-navy);margin:6px 0;opacity:0.5;"></div>
+
+                        {{-- Excel presets --}}
+                        <div style="padding:6px 10px 3px;font-size:10px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.8px;">
+                            <i class="fas fa-file-excel" style="margin-right:4px;"></i>Excel
+                        </div>
+                        <a href="{{ route('profile.export.excel', ['userName' => $userName, 'from' => date('Y-m-d'), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-day" style="color:#10b981;width:14px;"></i> Today
+                        </a>
+                        <a href="{{ route('profile.export.excel', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-6 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-week" style="color:#10b981;width:14px;"></i> Last 7 Days
+                        </a>
+                        <a href="{{ route('profile.export.excel', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-29 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-alt" style="color:#10b981;width:14px;"></i> Last 30 Days
+                        </a>
+                        <a href="{{ route('profile.export.excel', ['userName' => $userName, 'from' => $startDate, 'to' => $endDate]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-sliders-h" style="color:#10b981;width:14px;"></i> Current View
+                        </a>
+
+                        {{-- Session Report — PDF presets --}}
+                        <div style="margin:6px 10px 0;border-top:1px solid rgba(255,255,255,0.06);"></div>
+                        <div style="padding:6px 10px 3px;font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.8px;">
+                            <i class="fas fa-file-pdf" style="margin-right:4px;"></i>Session PDF
+                        </div>
+                        <a href="{{ route('profile.export.sessions.pdf', ['userName' => $userName, 'from' => date('Y-m-d'), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-day" style="color:#f59e0b;width:14px;"></i> Today
+                        </a>
+                        <a href="{{ route('profile.export.sessions.pdf', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-6 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-week" style="color:#f59e0b;width:14px;"></i> Last 7 Days
+                        </a>
+                        <a href="{{ route('profile.export.sessions.pdf', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-29 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-alt" style="color:#f59e0b;width:14px;"></i> Last 30 Days
+                        </a>
+                        <a href="{{ route('profile.export.sessions.pdf', ['userName' => $userName, 'from' => $startDate, 'to' => $endDate]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-sliders-h" style="color:#f59e0b;width:14px;"></i> Current View
+                        </a>
+
+                        {{-- Session Report — CSV presets --}}
+                        <div style="padding:6px 10px 3px;font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.8px;">
+                            <i class="fas fa-file-csv" style="margin-right:4px;"></i>Session CSV
+                        </div>
+                        <a href="{{ route('profile.export.sessions', ['userName' => $userName, 'from' => date('Y-m-d'), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-day" style="color:#f59e0b;width:14px;"></i> Today
+                        </a>
+                        <a href="{{ route('profile.export.sessions', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-6 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-week" style="color:#f59e0b;width:14px;"></i> Last 7 Days
+                        </a>
+                        <a href="{{ route('profile.export.sessions', ['userName' => $userName, 'from' => date('Y-m-d', strtotime('-29 days')), 'to' => date('Y-m-d')]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-calendar-alt" style="color:#f59e0b;width:14px;"></i> Last 30 Days
+                        </a>
+                        <a href="{{ route('profile.export.sessions', ['userName' => $userName, 'from' => $startDate, 'to' => $endDate]) }}"
+                           style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-primary);text-decoration:none;font-size:13px;transition:background 0.15s;"
+                           onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background=''">
+                            <i class="fas fa-sliders-h" style="color:#f59e0b;width:14px;"></i> Current View
+                        </a>
+                    </div>
+                </div>
+                <script>
+                    // Close export dropdown when clicking outside
+                    document.addEventListener('click', function(e) {
+                        var wrap = document.getElementById('exportDropdownWrap');
+                        if (wrap && !wrap.contains(e.target)) {
+                            var dd = document.getElementById('exportDropdown');
+                            if (dd) dd.classList.remove('open');
+                        }
+                    });
+                    // Toggle via classList
+                    var exportDD = document.getElementById('exportDropdown');
+                    if (exportDD) {
+                        var observer = new MutationObserver(function() {
+                            exportDD.style.display = exportDD.classList.contains('open') ? 'block' : 'none';
+                        });
+                        observer.observe(exportDD, { attributes: true, attributeFilter: ['class'] });
+                    }
+                </script>
                 <button class="action-btn theme-toggle-btn" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-moon"></i>
                     <i class="fas fa-sun"></i>
@@ -473,6 +639,8 @@
                 </div>
             </div>
         </header>
+
+        @include('partials.license_status_banner')
 
         <!-- Content Area -->
         <main class="content-area">
@@ -610,37 +778,45 @@
                     </div>
 
                     <div class="chart-controls">
-                        <form action="{{ url()->current() }}" method="GET"
-                            style="display: flex; align-items: center; gap: 12px;">
+                        @php
+                            $today   = date('Y-m-d');
+                            $isToday = $startDate == $today && $endDate == $today;
+                            $is7d    = $startDate == date('Y-m-d', strtotime('-6 days')) && $endDate == $today;
+                            $is30d   = $startDate == date('Y-m-d', strtotime('-29 days')) && $endDate == $today;
+                        @endphp
+
+                        {{-- Quick preset buttons --}}
+                        <a href="{{ url()->current() }}?from={{ $today }}&to={{ $today }}"
+                           class="preset-btn {{ $isToday ? 'active' : '' }}"
+                           title="Today only">
+                            <i class="fas fa-circle" style="font-size:7px; vertical-align:middle; margin-right:4px; {{ $isToday ? 'color:#22c55e;' : '' }}"></i>Today
+                        </a>
+                        <a href="{{ url()->current() }}?from={{ date('Y-m-d', strtotime('-6 days')) }}&to={{ $today }}"
+                           class="preset-btn {{ $is7d ? 'active' : '' }}"
+                           title="Last 7 days">7 Days</a>
+                        <a href="{{ url()->current() }}?from={{ date('Y-m-d', strtotime('-29 days')) }}&to={{ $today }}"
+                           class="preset-btn {{ $is30d ? 'active' : '' }}"
+                           title="Last 30 days">1 Month</a>
+
+                        <div class="preset-divider"></div>
+
+                        {{-- Custom date form --}}
+                        <form id="dateRangeForm" action="{{ url()->current() }}" method="GET"
+                            style="display: flex; align-items: center; gap: 10px;">
                             <div class="date-range-group">
-                                <span
-                                    style="font-size: 11px; opacity: 0.7; color: var(--text-secondary); margin-right: 4px;">FROM</span>
-                                <input type="date" name="from" class="date-picker-input"
+                                <span style="font-size: 11px; opacity: 0.7; color: var(--text-secondary); margin-right: 4px;">FROM</span>
+                                <input type="date" id="fromDate" name="from" class="date-picker-input"
                                     value="{{ $startDate }}">
                             </div>
                             <div class="date-range-group">
-                                <span
-                                    style="font-size: 11px; opacity: 0.7; color: var(--text-secondary); margin-right: 4px;">TO</span>
-                                <input type="date" name="to" class="date-picker-input"
+                                <span style="font-size: 11px; opacity: 0.7; color: var(--text-secondary); margin-right: 4px;">TO</span>
+                                <input type="date" id="toDate" name="to" class="date-picker-input"
                                     value="{{ $endDate }}">
                             </div>
                             <button type="submit" class="btn-live-tracking"
-                                style="padding: 8px 16px; min-width: auto; background: var(--accent-blue); color: white;">
+                                style="padding: 8px 16px; min-width: auto; background: var(--accent-blue); color: white; text-decoration:none;">
                                 <i class="fas fa-filter"></i> Apply
                             </button>
-
-                            @php
-                                $isToday = $startDate == date('Y-m-d') && $endDate == date('Y-m-d');
-                            @endphp
-
-                            <a href="{{ url()->current() }}?from={{ date('Y-m-d') }}&to={{ date('Y-m-d') }}"
-                                class="btn-live-tracking {{ $isToday ? 'active' : '' }}"
-                                style="text-decoration: none; display: flex; align-items: center; gap: 8px; {{ $isToday ? 'background: rgba(34, 197, 94, 0.2); border-color: #22c55e;' : '' }}">
-                                <span class="live-dot"
-                                    style="{{ $isToday ? 'background: #22c55e; box-shadow: 0 0 10px #22c55e;' : '' }}"></span>
-                                <span style="{{ $isToday ? 'color: #22c55e; font-weight: 600;' : '' }}">Live
-                                    Tracking</span>
-                            </a>
                         </form>
                     </div>
                 </div>
@@ -772,18 +948,19 @@
             const textColor = isDark ? '#94a3b8' : '#64748b';
             const gridColor = isDark ? '#334155' : '#e2e8f0';
 
-            // Activity Area Chart (Hero)
-            const gradientLine = ctxActivity.createLinearGradient(0, 0, 0, 300);
-            gradientLine.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
-            gradientLine.addColorStop(1, 'rgba(59, 130, 246, 0)');
+            // Activity Area Chart (Hero) — always line chart
+            // Multi-day: stacked, daily buckets. Single-day: non-stacked, 30-min buckets (00:00–23:30).
+            const isMultiDay = @json($timelineIsMultiDay);
+            const rawDatasets = @json($timelineDatasets);
 
             activityChart = new Chart(ctxActivity, {
                 type: 'line',
                 data: {
-                    labels: @json($timelineLabels),
-                    datasets: @json($timelineDatasets)
+                    labels:   @json($timelineLabels),
+                    datasets: rawDatasets
                 },
                 options: {
+                    spanGaps: !isMultiDay,
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -796,24 +973,15 @@
                                 boxWidth: 10,
                                 usePointStyle: true,
                                 padding: 15,
-                                font: {
-                                    family: 'Outfit',
-                                    size: 11
-                                }
+                                font: { family: 'Outfit', size: 11 }
                             }
                         },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
                             backgroundColor: '#12182b',
-                            titleFont: {
-                                family: 'Outfit',
-                                size: 13
-                            },
-                            bodyFont: {
-                                family: 'Outfit',
-                                size: 12
-                            },
+                            titleFont: { family: 'Outfit', size: 13 },
+                            bodyFont:  { family: 'Outfit', size: 12 },
                             borderColor: 'rgba(255,255,255,0.1)',
                             borderWidth: 1,
                             callbacks: {
@@ -831,48 +999,29 @@
                         }
                     },
                     animations: {
-                        y: {
-                            easing: 'easeInOutQuart',
-                            duration: 1000,
-                            from: 500
-                        },
-                        tension: {
-                            duration: 1000,
-                            easing: 'linear',
-                            from: 1,
-                            to: 0.4
-                        }
+                        y: { easing: 'easeOutQuart', duration: 700 }
                     },
                     scales: {
                         x: {
-                            grid: {
-                                display: false
-                            },
+                            grid: { display: false },
                             ticks: {
                                 color: textColor,
-                                font: {
-                                    family: 'Outfit',
-                                    size: 11
-                                }
+                                font: { family: 'Outfit', size: 11 },
+                                maxTicksLimit: isMultiDay ? 30 : 12,
+                                maxRotation: 45
                             }
                         },
                         y: {
-                            stacked: true,
-                            grid: {
-                                color: gridColor,
-                                borderDash: [6, 6]
-                            },
+                            stacked: isMultiDay,
+                            grid: { color: gridColor, borderDash: [6, 6] },
                             ticks: {
                                 color: textColor,
-                                font: {
-                                    family: 'Outfit',
-                                    size: 10
-                                },
-                                stepSize: 5,
+                                font: { family: 'Outfit', size: 10 },
+                                stepSize: isMultiDay ? 60 : 5,
                                 callback: function(value) {
                                     const h = Math.floor(value / 60);
                                     const m = value % 60;
-                                    return h + 'h ' + m + 'm';
+                                    return h > 0 ? h + 'h ' + (m > 0 ? m + 'm' : '') : m + 'm';
                                 }
                             },
                             beginAtZero: true

@@ -126,7 +126,7 @@
 
     <!-- Header -->
     <div class="header">
-        <div class="header-logo">ASCLAM</div>
+        <div class="header-logo">ACLM</div>
         <div class="avatar-large">{{ strtoupper(substr($userName, 0, 1)) }}</div>
         <h1>{{ $userName }}</h1>
         <div class="header-role">{{ $occupation ?: 'Team Member' }} &nbsp;·&nbsp; {{ $department }}</div>
@@ -232,7 +232,7 @@
         <!-- Message from HR -->
         <div class="message-box">
             Dear <strong>{{ $userName }}</strong>,<br><br>
-            This is your automated weekly performance summary from the ASCLAM monitoring system.
+            This is your automated weekly performance summary from the ACLM monitoring system.
             Your team leader <strong>{{ $teamLeaderName }}</strong> has been CC'd on this email.<br><br>
             If you have any questions about your activity data or this report, please reach out to HR or your team leader directly.
         </div>
@@ -242,12 +242,12 @@
     <!-- Footer -->
     <div class="footer">
         <p>
-            Sent by <strong>ASCLAM</strong> on behalf of <strong>HR Department</strong>.<br>
+            Sent by <strong>ACLM</strong> on behalf of <strong>HR Department</strong>.<br>
             Team Leader: <strong>{{ $teamLeaderName }}</strong> ({{ $teamLeaderEmail }}) — CC'd.<br>
         </p>
         <hr class="divider">
         <p style="font-size:11px;color:#cbd5e1;">
-            © {{ date('Y') }} ASCLAM · Automated Individual Report · Week ending {{ $weekEnd }}
+            © {{ date('Y') }} ACLM · Automated Individual Report · Week ending {{ $weekEnd }}
         </p>
     </div>
 
