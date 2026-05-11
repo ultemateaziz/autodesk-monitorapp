@@ -300,6 +300,35 @@
         </tbody>
     </table>
 
+    {{-- ── App Activity Log ── --}}
+    <div class="section-title">Daily Activity Log</div>
+    @if (!empty($appSessions))
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Software Name</th>
+                <th>Duration (min)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($appSessions as $session)
+            <tr>
+                <td style="color:#64748b; font-size:10px;">{{ $session['date'] }}</td>
+                <td style="font-family:monospace; font-weight:700;">{{ $session['start'] }}</td>
+                <td style="font-family:monospace; color:#64748b;">{{ $session['end'] }}</td>
+                <td style="font-weight:700; color:#6366f1;">{{ $session['app'] }}</td>
+                <td style="font-weight:700;">{{ $session['duration'] }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @else
+    <p style="color:#94a3b8; margin-bottom:20px;">No activity recorded in the selected period.</p>
+    @endif
+
     {{-- ── Footer ── --}}
     <table class="report-footer" style="width:100%;">
         <tr>

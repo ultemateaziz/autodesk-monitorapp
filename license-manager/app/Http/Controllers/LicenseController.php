@@ -216,14 +216,16 @@ class LicenseController extends Controller
             ->count();
 
         return response()->json([
-            'status'      => 'activated',
-            'tier'        => $license->tier,
-            'expires_at'  => $expiresAt->toDateTimeString(),
-            'days_left'   => (int) Carbon::now()->diffInDays($expiresAt, false),
-            'machine'     => $machineName,
-            'hardware_id' => $data['hardware_id'],
-            'seats_used'  => $usedSeats,
-            'seats_limit' => $license->max_seats,
+            'status'        => 'activated',
+            'tier'          => $license->tier,
+            'expires_at'    => $expiresAt->toDateTimeString(),
+            'days_left'     => (int) Carbon::now()->diffInDays($expiresAt, false),
+            'machine'       => $machineName,
+            'hardware_id'   => $data['hardware_id'],
+            'seats_used'    => $usedSeats,
+            'seats_limit'   => $license->max_seats,
+            'max_machines'  => $license->max_seats,
+            'customer_name' => $license->customer_name,
         ]);
     }
 
@@ -332,8 +334,12 @@ class LicenseController extends Controller
         $activation->update(['last_pulse' => now()]);
 
         return response()->json([
-            'status'    => 'ok',
-            'days_left' => $license->expires_at ? (int) Carbon::now()->diffInDays($license->expires_at, false) : null,
+            'status'        => 'valid',
+            'days_left'     => $license->expires_at ? (int) Carbon::now()->diffInDays($license->expires_at, false) : null,
+            'max_machines'  => $license->max_seats,
+            'tier'          => $license->tier,
+            'customer_name' => $license->customer_name,
+            'expires_at'    => $license->expires_at?->toDateTimeString(),
         ]);
     }
 }

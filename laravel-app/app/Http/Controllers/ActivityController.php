@@ -33,7 +33,7 @@ class ActivityController extends Controller
             'application' => $validated['application'],
             'status' => $validated['status'],
             'ip_address' => $request->ip(),
-            'recorded_at' => $validated['timestamp'],
+            'recorded_at' => now(),
         ]);
 
         // 4. Return Success to the Node Script

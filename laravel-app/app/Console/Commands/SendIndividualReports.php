@@ -78,6 +78,56 @@ class SendIndividualReports extends Command
 
             $topApp = array_key_first($appBreakdown) ?? '';
 
+            // Daily session timeline — gap > 5 min = new session
+            $dailySessions = [];
+            $byDay = $logs->sortBy('recorded_at')
+                ->groupBy(fn($log) => Carbon::parse($log->recorded_at)->toDateString());
+
+            foreach ($byDay as $date => $dayLogs) {
+                $sessions   = [];
+                $curSession = null;
+                $prevTime   = null;
+
+                foreach ($dayLogs as $log) {
+                    $t = Carbon::parse($log->recorded_at);
+                    if ($curSession === null) {
+                        $curSession = ['start' => $t->copy(), 'end' => $t->copy(), 'apps' => [$log->application], 'count' => 1];
+                    } elseif ($prevTime && $t->diffInSeconds($prevTime) <= 300) {
+                        $curSession['end'] = $t->copy();
+                        $curSession['apps'][] = $log->application;
+                        $curSession['count']++;
+                    } else {
+                        $dSecs = $curSession['count'] * 3;
+                        $dH = floor($dSecs / 3600);
+                        $dM = floor(($dSecs % 3600) / 60);
+                        $appCounts = array_count_values($curSession['apps']);
+                        arsort($appCounts);
+                        $sessions[] = [
+                            'start'    => $curSession['start']->format('H:i'),
+                            'end'      => $curSession['end']->copy()->addSeconds(3)->format('H:i'),
+                            'duration' => $dH > 0 ? "{$dH}h {$dM}m" : "{$dM}m",
+                            'top_app'  => array_key_first($appCounts) ?? '',
+                        ];
+                        $curSession = ['start' => $t->copy(), 'end' => $t->copy(), 'apps' => [$log->application], 'count' => 1];
+                    }
+                    $prevTime = $t;
+                }
+                if ($curSession) {
+                    $dSecs = $curSession['count'] * 3;
+                    $dH = floor($dSecs / 3600);
+                    $dM = floor(($dSecs % 3600) / 60);
+                    $appCounts = array_count_values($curSession['apps']);
+                    arsort($appCounts);
+                    $sessions[] = [
+                        'start'    => $curSession['start']->format('H:i'),
+                        'end'      => $curSession['end']->copy()->addSeconds(3)->format('H:i'),
+                        'duration' => $dH > 0 ? "{$dH}h {$dM}m" : "{$dM}m",
+                        'top_app'  => array_key_first($appCounts) ?? '',
+                    ];
+                }
+                $dailySessions[Carbon::parse($date)->format('l, d M Y')] = $sessions;
+            }
+
             try {
                 Mail::send(new IndividualUserReport(
                     userName:        $user->name,
@@ -96,6 +146,7 @@ class SendIndividualReports extends Command
                     topApp:          $topApp,
                     hrEmail:         $hrEmail,
                     hrName:          $hrName,
+                    dailySessions:   $dailySessions,
                 ));
 
                 $this->info("✅ Sent to {$user->name} ({$user->email}) | CC: {$leader->name}");

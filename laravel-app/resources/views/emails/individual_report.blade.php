@@ -100,6 +100,16 @@
     .perf-low    { background:rgba(239,68,68,0.12);  color:#ef4444; border:1px solid rgba(239,68,68,0.25); }
     .perf-desc { font-size:12px; color:#94a3b8; margin-top:6px; }
 
+    /* Daily sessions */
+    .day-block { margin-bottom:18px; }
+    .day-label { font-size:11px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px; }
+    .session-table { width:100%; border-collapse:collapse; }
+    .session-table th { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; padding:4px 8px; text-align:left; background:#f1f5f9; }
+    .session-table td { font-size:12px; color:#334155; padding:6px 8px; border-bottom:1px solid #f1f5f9; font-family:monospace; }
+    .session-table tr:last-child td { border-bottom:none; }
+    .session-dur { font-weight:700; color:#6366f1; }
+    .session-app { color:#475569; font-family:'Segoe UI',Arial,sans-serif; font-size:11px; }
+
     /* Message */
     .message-box {
         background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.04));
@@ -209,6 +219,36 @@
             <div class="bar-track">
                 <div class="bar-fill" style="width:{{ $maxHrs > 0 ? round(($hrs/$maxHrs)*100) : 0 }}%"></div>
             </div>
+        </div>
+        @endforeach
+        @endif
+
+        <!-- Daily Session Timeline -->
+        @if (!empty($dailySessions))
+        <div class="section-title">Daily Session Timeline</div>
+        @foreach ($dailySessions as $dayLabel => $sessions)
+        <div class="day-block">
+            <div class="day-label">{{ $dayLabel }}</div>
+            <table class="session-table">
+                <thead>
+                    <tr>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Duration</th>
+                        <th>Primary App</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($sessions as $s)
+                    <tr>
+                        <td>{{ $s['start'] }}</td>
+                        <td>{{ $s['end'] }}</td>
+                        <td><span class="session-dur">{{ $s['duration'] }}</span></td>
+                        <td><span class="session-app">{{ $s['top_app'] }}</span></td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
         @endforeach
         @endif

@@ -97,6 +97,35 @@
         </tr>
     </table>
 
+    {{-- ── Software Usage Breakdown ── --}}
+    @if (!empty($appBreakdown))
+    <div class="section-title">Software Usage Breakdown</div>
+    <table class="data-table" style="margin-bottom:18px;">
+        <thead>
+            <tr>
+                <th style="width:40%;">Application</th>
+                <th style="width:20%; text-align:right;">Active Time</th>
+                <th style="width:12%; text-align:right;">Share</th>
+                <th>Usage Bar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($appBreakdown as $row)
+            <tr>
+                <td style="font-weight:700; color:#0f172a;">{{ $row['app'] }}</td>
+                <td style="text-align:right; font-weight:700;">{{ $row['time'] }}</td>
+                <td style="text-align:right; font-weight:800; color:#f59e0b;">{{ $row['percent'] }}%</td>
+                <td style="padding-right:10px;">
+                    <div style="height:6px; background:#fef3c7; border-radius:3px;">
+                        <div style="height:6px; background:#f59e0b; border-radius:3px; width:{{ $row['percent'] }}%;"></div>
+                    </div>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
     {{-- ── Daily Summary ── --}}
     <div class="section-title">Daily Summary</div>
     <table class="data-table">

@@ -30,6 +30,7 @@ class IndividualUserReport extends Mailable
         public string  $topApp,
         public string  $hrEmail,
         public string  $hrName,
+        public array   $dailySessions = [], // [ 'Monday, 05 May 2026' => [['start'=>'09:00','end'=>'10:20','duration'=>'1h20m','top_app'=>'AutoCAD'], ...] ]
     ) {}
 
     public function envelope(): Envelope

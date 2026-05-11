@@ -61,11 +61,13 @@ class ProfileController extends Controller
         $startDate = $request->get('from', now()->subDays(29)->toDateString());
         $endDate   = $request->get('to', now()->toDateString());
 
-        $data = $this->buildReportData($userName, $startDate, $endDate);
+        $data        = $this->buildReportData($userName, $startDate, $endDate);
+        $appSessions = $this->buildAppSessions($userName, $startDate, $endDate);
 
         $pdf = Pdf::loadView('profile_pdf', array_merge($data, [
-            'startDate' => $startDate,
-            'endDate'   => $endDate,
+            'startDate'   => $startDate,
+            'endDate'     => $endDate,
+            'appSessions' => $appSessions,
         ]))->setPaper('a4', 'portrait');
 
         $filename = 'report_' . preg_replace('/[^a-z0-9_]/i', '_', $userName) . '_' . $startDate . '_to_' . $endDate . '.pdf';
@@ -148,6 +150,24 @@ class ProfileController extends Controller
                 $log->status,
                 '',
             ];
+        }
+
+        // ── App Activity Log ───────────────────────────────────────────
+        $appSessions = $this->buildAppSessions($userName, $startDate, $endDate);
+        $rows[] = ['', '', '', '', ''];
+        $rows[] = ['APP ACTIVITY LOG', '', '', '', ''];
+        $rows[] = ['Date', 'Start Time', 'End Time', 'Software Name', 'Duration (min)'];
+        foreach ($appSessions as $session) {
+            $rows[] = [
+                $session['date'],
+                $session['start'],
+                $session['end'],
+                $session['app'],
+                $session['duration'],
+            ];
+        }
+        if (empty($appSessions)) {
+            $rows[] = ['No activity recorded in this period.', '', '', '', ''];
         }
 
         // ── Build CSV ──────────────────────────────────────────────────
@@ -520,15 +540,45 @@ class ProfileController extends Controller
             ];
         }
 
+        // Software usage breakdown for the period
+        $from = Carbon::parse($startDate)->startOfDay();
+        $to   = Carbon::parse($endDate)->endOfDay();
+        $appRaw = ActivityLog::where('user_name', $userName)
+            ->whereBetween('recorded_at', [$from, $to])
+            ->where('status', 'Active')
+            ->selectRaw('application, COUNT(*) as cnt')
+            ->groupBy('application')
+            ->get();
+        $appUsage = [];
+        foreach ($appRaw as $row) {
+            $clean = $this->mapApplicationName($row->application);
+            $appUsage[$clean] = ($appUsage[$clean] ?? 0) + $row->cnt;
+        }
+        $appUsage = $this->mergeAppVersions($appUsage);
+        arsort($appUsage);
+        $totalPolls = array_sum($appUsage) ?: 1;
+        $appBreakdown = [];
+        foreach ($appUsage as $app => $polls) {
+            $secs = $polls * 3;
+            $h    = floor($secs / 3600);
+            $m    = floor(($secs % 3600) / 60);
+            $appBreakdown[] = [
+                'app'     => $app,
+                'time'    => $h > 0 ? "{$h}h {$m}min" : "{$m}min",
+                'percent' => round($polls / $totalPolls * 100),
+            ];
+        }
+
         $pdf = Pdf::loadView('session_report_pdf', [
-            'userName'     => $userName,
-            'displayName'  => $displayName,
-            'department'   => $department,
-            'startDate'    => $startDate,
-            'endDate'      => $endDate,
-            'daySummary'   => $daySummary,
+            'userName'      => $userName,
+            'displayName'   => $displayName,
+            'department'    => $department,
+            'startDate'     => $startDate,
+            'endDate'       => $endDate,
+            'daySummary'    => $daySummary,
             'sessionsByDay' => $sessionsByDay,
-            'overallTotal' => $overallTotal,
+            'overallTotal'  => $overallTotal,
+            'appBreakdown'  => $appBreakdown,
         ])->setPaper('a4', 'portrait');
 
         $slug     = preg_replace('/[^a-z0-9_]/i', '_', $userName);
@@ -627,6 +677,39 @@ class ProfileController extends Controller
             $rows[] = ['', '', '', '', ''];
         }
 
+        // ── Software Usage Breakdown ──────────────────────────────────────
+        $from2   = Carbon::parse($startDate)->startOfDay();
+        $to2     = Carbon::parse($endDate)->endOfDay();
+        $appRaw2 = ActivityLog::where('user_name', $userName)
+            ->whereBetween('recorded_at', [$from2, $to2])
+            ->where('status', 'Active')
+            ->selectRaw('application, COUNT(*) as cnt')
+            ->groupBy('application')
+            ->get();
+        $appUsage2 = [];
+        foreach ($appRaw2 as $row2) {
+            $clean = $this->mapApplicationName($row2->application);
+            $appUsage2[$clean] = ($appUsage2[$clean] ?? 0) + $row2->cnt;
+        }
+        $appUsage2   = $this->mergeAppVersions($appUsage2);
+        arsort($appUsage2);
+        $totalPolls2 = array_sum($appUsage2) ?: 1;
+
+        $rows[] = ['SOFTWARE USAGE BREAKDOWN', '', '', '', ''];
+        $rows[] = ['Application', 'Active Time', 'Share %', '', ''];
+        foreach ($appUsage2 as $app2 => $polls2) {
+            $secs2 = $polls2 * 3;
+            $h2    = floor($secs2 / 3600);
+            $m2    = floor(($secs2 % 3600) / 60);
+            $time2 = $h2 > 0 ? "{$h2}h {$m2}min" : "{$m2}min";
+            $pct2  = round($polls2 / $totalPolls2 * 100);
+            $rows[] = [$app2, $time2, $pct2 . '%', '', ''];
+        }
+        if (empty($appUsage2)) {
+            $rows[] = ['No software activity recorded.', '', '', '', ''];
+        }
+        $rows[] = ['', '', '', '', ''];
+
         // ── Build CSV ─────────────────────────────────────────────────────
         $csv = "\xEF\xBB\xBF";
         foreach ($rows as $row) {
@@ -645,6 +728,66 @@ class ProfileController extends Controller
             'Cache-Control'       => 'no-cache, no-store, must-revalidate',
             'Pragma'              => 'no-cache',
         ]);
+    }
+
+    private function buildAppSessions(string $userName, string $startDate, string $endDate): array
+    {
+        $from = Carbon::parse($startDate)->startOfDay();
+        $to   = Carbon::parse($endDate)->endOfDay();
+
+        $logs = ActivityLog::where('user_name', $userName)
+            ->whereBetween('recorded_at', [$from, $to])
+            ->whereIn('status', ['Active', 'Idle'])
+            ->orderBy('recorded_at')
+            ->get(['recorded_at', 'application']);
+
+        $GAP_THRESHOLD  = 300;
+        $sessions       = [];
+        $currentSession = null;
+        $prevTime       = null;
+
+        foreach ($logs as $log) {
+            $time = $log->recorded_at instanceof Carbon ? $log->recorded_at : Carbon::parse($log->recorded_at);
+            $app  = $this->mapApplicationName($log->application);
+
+            $gapTooLarge = $prevTime !== null && $time->diffInSeconds($prevTime) > $GAP_THRESHOLD;
+            $appChanged  = $currentSession !== null && $app !== $currentSession['app'];
+
+            if ($currentSession === null || $gapTooLarge || $appChanged) {
+                if ($currentSession !== null) {
+                    $sessions[] = $currentSession;
+                }
+                $currentSession = [
+                    'app'        => $app,
+                    'start'      => $time->copy(),
+                    'end'        => $time->copy(),
+                    'poll_count' => 1,
+                ];
+            } else {
+                $currentSession['end'] = $time->copy();
+                $currentSession['poll_count']++;
+            }
+            $prevTime = $time;
+        }
+
+        if ($currentSession !== null) {
+            $sessions[] = $currentSession;
+        }
+
+        return array_map(function ($s) {
+            $secs     = $s['poll_count'] * 3;
+            $totalMin = round($secs / 60, 1);
+            $duration = $totalMin >= 1 ? number_format($totalMin, 0) . ' min' : '<1 min';
+
+            return [
+                'app'      => $s['app'],
+                'date'     => $s['start']->format('d M Y'),
+                'start'    => $s['start']->format('H:i'),
+                'end'      => $s['end']->copy()->addSeconds(3)->format('H:i'),
+                'duration' => $duration,
+                'secs'     => $secs,
+            ];
+        }, $sessions);
     }
 
     private function buildSessions(string $userName, string $startDate, string $endDate): array

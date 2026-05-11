@@ -583,15 +583,21 @@
                     }
                 };
             } else {
-                // daily
+                // daily — suggestedMax lets chart grow beyond 60 when data exceeds it
                 return {
                     ...base,
-                    max: 60,
+                    suggestedMax: 65,
+                    clip: false,
                     ticks: {
                         ...base.ticks,
-                        stepSize: 5,
+                        stepSize: 10,
                         callback: function(value) {
-                            return value === 60 ? '1h' : value + 'm';
+                            if (value === 0) return '0';
+                            const h = Math.floor(value / 60);
+                            const m = value % 60;
+                            if (h === 0) return m + 'm';
+                            if (m === 0) return h + 'h';
+                            return h + 'h ' + m + 'm';
                         }
                     }
                 };
@@ -803,7 +809,7 @@
 
         // ─── FEATURE 1: LIVE REAL-TIME AUTO REFRESH ──────────────────────────────
         (function() {
-            const REFRESH_EVERY = 30;
+            const REFRESH_EVERY = 60;
             let countdown = REFRESH_EVERY;
             const topbarActions = document.querySelector('.topbar-actions');
             if (topbarActions) {

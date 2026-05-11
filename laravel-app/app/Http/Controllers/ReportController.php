@@ -226,12 +226,28 @@ class ReportController extends Controller
             $trendValues[] = round($cnt * 3 / 3600, 1);
         }
 
+        // ------- 8. Peak usage hours (hourly distribution 00:00–23:00) -------
+        $hourlyRaw = ActivityLog::whereBetween('recorded_at', [$from, $to])
+            ->when($authorizedUsernames, fn($q) => $q->whereIn('user_name', $authorizedUsernames))
+            ->selectRaw('HOUR(recorded_at) as hr, COUNT(*) as cnt')
+            ->groupBy('hr')
+            ->pluck('cnt', 'hr')
+            ->toArray();
+
+        $peakHourLabels = [];
+        $peakHourValues = [];
+        for ($h = 0; $h < 24; $h++) {
+            $peakHourLabels[] = sprintf('%02d:00', $h);
+            $peakHourValues[] = round(($hourlyRaw[$h] ?? 0) * 3 / 3600, 2);
+        }
+
         return view('report_pdf', compact(
             'days', 'dept',
             'totalHours', 'totalUsageLabel', 'totalUsageSub', 'uniqueUsers', 'uniqueApps', 'activeUsersRaw',
             'appUsage', 'deptData', 'topUsers',
             'ghostCount', 'licenseStats',
             'trendLabels', 'trendValues',
+            'peakHourLabels', 'peakHourValues',
             'from', 'to'
         ));
     }

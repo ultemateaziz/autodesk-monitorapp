@@ -572,7 +572,7 @@
             </div>
         </div>
 
-        @php $sections = request('sections', ['kpi','app_usage','dept','top_users','license','ghost','trend']); @endphp
+        @php $sections = request('sections', ['kpi','app_usage','dept','top_users','license','ghost','trend','peak_hours']); @endphp
 
         <!-- ===== KPI SUMMARY ===== -->
         @if (in_array('kpi', $sections))
@@ -805,6 +805,18 @@
             </div>
         @endif
 
+        <!-- ===== PEAK USAGE HOURS ===== -->
+        @if (in_array('peak_hours', $sections))
+            <div class="section-title"><i class="fas fa-clock"></i> Peak Usage Hours</div>
+            <div class="chart-panel full" style="margin-bottom:32px;">
+                <h3><i class="fas fa-chart-bar" style="color:var(--teal);margin-right:8px;"></i>Hourly Activity Distribution</h3>
+                <p>Total software hours logged per hour of day across the selected period — identify when users are most active</p>
+                <div class="chart-wrap tall">
+                    <canvas id="peakHoursChart"></canvas>
+                </div>
+            </div>
+        @endif
+
         <!-- ===== GHOST MACHINES SUMMARY ===== -->
         @if (in_array('ghost', $sections))
             <div class="chart-panel full" style="margin-bottom:32px;border-color:rgba(239,68,68,0.2);">
@@ -973,6 +985,61 @@
                                 },
                                 padding: 12,
                                 cornerRadius: 10
+                            }
+                        }
+                    }
+                });
+            })();
+        @endif
+
+        // Peak Hours Chart
+        @if (in_array('peak_hours', $sections))
+            (function() {
+                const ctx = document.getElementById('peakHoursChart');
+                if (!ctx) return;
+                const values = {!! json_encode($peakHourValues) !!};
+                const maxVal = Math.max(...values, 0.01);
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: {!! json_encode($peakHourLabels) !!},
+                        datasets: [{
+                            label: 'Hours',
+                            data: values,
+                            backgroundColor: values.map(v => {
+                                const intensity = v / maxVal;
+                                return `rgba(20, 184, 166, ${0.15 + intensity * 0.75})`;
+                            }),
+                            borderColor: '#14b8a6',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleFont: { family: 'Outfit' },
+                                bodyFont: { family: 'Outfit' },
+                                padding: 12,
+                                cornerRadius: 10,
+                                callbacks: {
+                                    label: ctx => ` ${ctx.parsed.y.toFixed(2)}h logged`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#94a3b8', font: { family: 'Outfit' } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 10 }, maxRotation: 45 }
                             }
                         }
                     }

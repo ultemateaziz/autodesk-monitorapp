@@ -92,69 +92,73 @@ class DashboardController extends Controller
         // 4. Dynamic Productivity Data Layout (Respect Department)
         $timelineLabels = [];
         
-        // Define common query closure for timeline
-        // Only select the columns we actually need for the timeline (recorded_at + application)
-        $getTimelineLogs = function($f, $t) use ($authorizedUsernames) {
-            $q = ActivityLog::whereBetween('recorded_at', [$f, $t])
-                ->select('application', 'recorded_at');
-            if ($authorizedUsernames !== null) {
-                $q->whereIn('user_name', $authorizedUsernames);
-            }
-            return $q->get();
-        };
-
         $appTimelineRaw = [];
         $appsFound = [];
-        
+
         if ($period == 'hourly') {
-            // Bucketed by 5-minute intervals for the selected day/range
+            // Bucket by 5-min slot (0-11) — GROUP BY in DB, no row-level fetch
             $timelineLabels = ["00'","05'","10'","15'","20'","25'","30'","35'","40'","45'","50'","55'"];
-            $logs = $getTimelineLogs($from, $to);
-            foreach ($logs as $log) {
-                $cleanName = $this->mapApplicationName($log->application);
-                $appsFound[$cleanName] = true;
-                $minute = intval(Carbon::parse($log->recorded_at)->format('i'));
-                $bucket = floor($minute / 5);
-                $appTimelineRaw[$cleanName][$bucket] = ($appTimelineRaw[$cleanName][$bucket] ?? 0) + 1;
+            $q = ActivityLog::whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('application, FLOOR(MINUTE(recorded_at)/5) as bucket, COUNT(*) as cnt')
+                ->groupBy('application', 'bucket');
+            if ($authorizedUsernames !== null) $q->whereIn('user_name', $authorizedUsernames);
+            foreach ($q->get() as $row) {
+                $clean = $this->mapApplicationName($row->application);
+                $appsFound[$clean] = true;
+                $appTimelineRaw[$clean][(int)$row->bucket] = ($appTimelineRaw[$clean][(int)$row->bucket] ?? 0) + $row->cnt;
             }
             $numBuckets = 12;
         } elseif ($period == 'weekly') {
-            // Last 7 days bucketed by day
             $from = Carbon::parse($endDate)->subDays(6)->startOfDay();
             $timelineLabels = [];
-            for ($i = 6; $i >= 0; $i--) { $timelineLabels[] = Carbon::parse($endDate)->subDays($i)->format('D d/m'); }
-            $logs = $getTimelineLogs($from, $to);
-            foreach ($logs as $log) {
-                $cleanName = $this->mapApplicationName($log->application);
-                $appsFound[$cleanName] = true;
-                $dateStr = Carbon::parse($log->recorded_at)->format('D d/m');
-                $bucketIdx = array_search($dateStr, $timelineLabels);
-                if ($bucketIdx !== false) $appTimelineRaw[$cleanName][$bucketIdx] = ($appTimelineRaw[$cleanName][$bucketIdx] ?? 0) + 1;
+            $dateAxis = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $d = Carbon::parse($endDate)->subDays($i);
+                $timelineLabels[] = $d->format('D d/m');
+                $dateAxis[]       = $d->toDateString();
+            }
+            $q = ActivityLog::whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('application, DATE(recorded_at) as day, COUNT(*) as cnt')
+                ->groupBy('application', 'day');
+            if ($authorizedUsernames !== null) $q->whereIn('user_name', $authorizedUsernames);
+            foreach ($q->get() as $row) {
+                $clean = $this->mapApplicationName($row->application);
+                $appsFound[$clean] = true;
+                $idx = array_search($row->day, $dateAxis);
+                if ($idx !== false) $appTimelineRaw[$clean][$idx] = ($appTimelineRaw[$clean][$idx] ?? 0) + $row->cnt;
             }
             $numBuckets = 7;
         } elseif ($period == 'monthly') {
-            // Last 30 days bucketed by day
             $from = Carbon::parse($endDate)->subDays(29)->startOfDay();
             $timelineLabels = [];
-            for ($i = 29; $i >= 0; $i--) { $timelineLabels[] = Carbon::parse($endDate)->subDays($i)->format('d'); }
-            $logs = $getTimelineLogs($from, $to);
-            foreach ($logs as $log) {
-                $cleanName = $this->mapApplicationName($log->application);
-                $appsFound[$cleanName] = true;
-                $dayStr = Carbon::parse($log->recorded_at)->format('d');
-                $bucketIdx = array_search($dayStr, $timelineLabels);
-                if ($bucketIdx !== false) $appTimelineRaw[$cleanName][$bucketIdx] = ($appTimelineRaw[$cleanName][$bucketIdx] ?? 0) + 1;
+            $dateAxis = [];
+            for ($i = 29; $i >= 0; $i--) {
+                $d = Carbon::parse($endDate)->subDays($i);
+                $timelineLabels[] = $d->format('d');
+                $dateAxis[]       = $d->toDateString();
+            }
+            $q = ActivityLog::whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('application, DATE(recorded_at) as day, COUNT(*) as cnt')
+                ->groupBy('application', 'day');
+            if ($authorizedUsernames !== null) $q->whereIn('user_name', $authorizedUsernames);
+            foreach ($q->get() as $row) {
+                $clean = $this->mapApplicationName($row->application);
+                $appsFound[$clean] = true;
+                $idx = array_search($row->day, $dateAxis);
+                if ($idx !== false) $appTimelineRaw[$clean][$idx] = ($appTimelineRaw[$clean][$idx] ?? 0) + $row->cnt;
             }
             $numBuckets = 30;
         } else {
-            // Default: Daily (24 hours bucketed by hour)
+            // Daily: bucket by hour (0-23)
             $timelineLabels = array_map(fn($h) => sprintf("%02d:00", $h), range(0, 23));
-            $logs = $getTimelineLogs($from, $to);
-            foreach ($logs as $log) {
-                $cleanName = $this->mapApplicationName($log->application);
-                $appsFound[$cleanName] = true;
-                $hour = intval(Carbon::parse($log->recorded_at)->format('H'));
-                $appTimelineRaw[$cleanName][$hour] = ($appTimelineRaw[$cleanName][$hour] ?? 0) + 1;
+            $q = ActivityLog::whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('application, HOUR(recorded_at) as hour, COUNT(*) as cnt')
+                ->groupBy('application', 'hour');
+            if ($authorizedUsernames !== null) $q->whereIn('user_name', $authorizedUsernames);
+            foreach ($q->get() as $row) {
+                $clean = $this->mapApplicationName($row->application);
+                $appsFound[$clean] = true;
+                $appTimelineRaw[$clean][(int)$row->hour] = ($appTimelineRaw[$clean][(int)$row->hour] ?? 0) + $row->cnt;
             }
             $numBuckets = 24;
         }
@@ -266,47 +270,41 @@ class DashboardController extends Controller
 
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
-        // 1. Data Collection
+        // 1. Data Collection — aggregated, no full row load
         $query = ActivityLog::whereBetween('recorded_at', [$from, $to]);
         if ($authorizedUsernames !== null) {
             $query->whereIn('user_name', $authorizedUsernames);
         }
-        $logs = $query->get();
-        $totalLogsInRange = $logs->count();
+        $totalLogsInRange = (clone $query)->count();
         $totalSeconds_summary = $totalLogsInRange * 3;
         $totalHours = round($totalSeconds_summary / 3600, 2);
         $totalHours_h = floor($totalSeconds_summary / 3600);
         $totalHours_m = floor(($totalSeconds_summary % 3600) / 60);
         $totalFormattedTime = $totalHours_h > 0 ? "{$totalHours_h}h {$totalHours_m}m" : "{$totalHours_m}m";
-        $totalRegisteredUsers = ActivityLog::whereBetween('recorded_at', [$from, $to]);
-        if ($authorizedUsernames !== null) {
-            $totalRegisteredUsers->whereIn('user_name', $authorizedUsernames);
-        }
-        $totalRegisteredUsers = $totalRegisteredUsers->distinct('user_name')->count('user_name');
-        
-        $appsFoundTotal = [];
-        foreach ($logs as $log) {
-            $cleanApp = $this->mapApplicationName($log->application);
-            $appsFoundTotal[$cleanApp] = true;
-        }
-        $totalAppsTracted = count($appsFoundTotal);
 
-        // --- NEW: User-wise Aggregation ---
+        $totalRegisteredUsers = (clone $query)->distinct('user_name')->count('user_name');
+
+        $totalAppsTracted = (clone $query)->distinct('application')->count('application');
+
+        // User-wise aggregation via GROUP BY — no full row load
+        $rawSummary = (clone $query)
+            ->selectRaw('user_name, machine_name, application, COUNT(*) as cnt')
+            ->groupBy('user_name', 'machine_name', 'application')
+            ->get();
+
         $userWiseSummary = [];
-        foreach ($logs as $log) {
-            $user = $log->user_name;
-            $app = $this->mapApplicationName($log->application);
-            $key = $user . '|' . $app;
-            
+        foreach ($rawSummary as $row) {
+            $app = $this->mapApplicationName($row->application);
+            $key = $row->user_name . '|' . $app;
             if (!isset($userWiseSummary[$key])) {
                 $userWiseSummary[$key] = [
-                    'user' => $user,
-                    'machine' => $log->machine_name,
+                    'user' => $row->user_name,
+                    'machine' => $row->machine_name,
                     'app' => $app,
                     'count' => 0
                 ];
             }
-            $userWiseSummary[$key]['count']++;
+            $userWiseSummary[$key]['count'] += $row->cnt;
         }
 
         $fileName = "Autodesk_Monitor_Report_{$startDate}_to_{$endDate}.csv";
@@ -318,7 +316,7 @@ class DashboardController extends Controller
             "Expires"             => "0"
         ];
 
-        $callback = function() use ($logs, $totalRegisteredUsers, $totalFormattedTime, $totalAppsTracted, $startDate, $endDate, $userWiseSummary) {
+        $callback = function() use ($query, $totalRegisteredUsers, $totalFormattedTime, $totalAppsTracted, $startDate, $endDate, $userWiseSummary) {
             $file = fopen('php://output', 'w');
 
             // --- Summary Section ---
@@ -361,7 +359,7 @@ class DashboardController extends Controller
             fputcsv($file, ["DETAILED ACTIVITY LOGS (RAW SECONDS DATA)"]);
             fputcsv($file, ["Log ID", "Date", "Time", "User Name", "Machine Name", "Application", "Status", "Duration"]);
 
-            foreach ($logs as $log) {
+            foreach ($query->cursor() as $log) {
                 $dt = Carbon::parse($log->recorded_at);
                 fputcsv($file, [
                     $log->id,
@@ -879,18 +877,32 @@ class DashboardController extends Controller
 
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
-        $softwareList = [
-            'AutoCAD', 'Revit', '3ds Max', 'Navisworks', 'InfraWorks',
-            'ReCap Pro', 'Autodesk Docs', 'FormIt', 'Robot Structural Analysis',
-            'Structural Bridge Design', 'Inventor', 'Fusion 360',
-            'Fabrication ESTmep', 'Fabrication CAMduct'
+        // Build software list dynamically from what's actually in the DB
+        $reverseMap = [
+            'AutoCAD' => 'acad', 'Revit' => 'revit', '3ds Max' => '3dsmax',
+            'Navisworks' => 'roamer', 'InfraWorks' => 'infraworks', 'ReCap Pro' => 'recap',
+            'Autodesk Docs' => 'desktopconnector', 'FormIt' => 'formit',
+            'Robot Structural Analysis' => 'robot', 'Structural Bridge Design' => 'sbd',
+            'Inventor' => 'inventor', 'Fusion 360' => 'fusion360',
+            'Fabrication ESTmep' => 'estmep', 'Fabrication CAMduct' => 'camduct',
         ];
+
+        $softwareList = ActivityLog::selectRaw('DISTINCT application')
+            ->pluck('application')
+            ->map(fn($app) => $this->mapApplicationName($app, false))
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Use raw keyword for LIKE search so "AutoCAD" → searches "acad" in DB
+        $searchKey = $reverseMap[$software] ?? $software;
 
         // Windows system/service accounts — excluded from all user-facing views
         $systemAccounts = ['administrator', 'admin', 'system', 'localservice', 'networkservice', 'defaultuser0'];
 
         // 1. Get Top Users for Selected Software in the range
-        $query = ActivityLog::where('application', 'LIKE', "%{$software}%")
+        $query = ActivityLog::where('application', 'LIKE', "%{$searchKey}%")
             ->whereBetween('recorded_at', [$from, $to])
             ->whereRaw('LOWER(user_name) NOT IN (' . implode(',', array_fill(0, count($systemAccounts), '?')) . ')', $systemAccounts);
 
@@ -929,25 +941,26 @@ class DashboardController extends Controller
         // Determine buckets based on range and period
         $diffDays = $from->diffInDays($to);
 
+        $topUserNames = array_column(array_map(fn($u) => (array)$u, $topUsers), 'user_name');
+
         if ($period == 'hourly' || $diffDays == 0) {
-            // Hourly view
+            // Hourly view — single GROUP BY query, no per-user row load
             $timelineLabels = array_map(fn($h) => sprintf("%02d:00", $h), range(0, 23));
             $numBuckets = 24;
 
+            $hourlyData = ActivityLog::whereIn('user_name', $topUserNames)
+                ->where('application', 'LIKE', "%{$searchKey}%")
+                ->whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('user_name, HOUR(recorded_at) as hour_bucket, COUNT(*) as cnt')
+                ->groupBy('user_name', 'hour_bucket')
+                ->get()
+                ->groupBy('user_name');
+
             foreach ($topUsers as $idx => $user) {
                 $bucketValues = array_fill(0, $numBuckets, 0);
-                $logs = ActivityLog::where('user_name', $user->user_name)
-                    ->where('application', 'LIKE', "%{$software}%")
-                    ->whereBetween('recorded_at', [$from, $to])
-                    ->select('recorded_at')
-                    ->get();
-
-                foreach ($logs as $log) {
-                    $hour = intval(Carbon::parse($log->recorded_at)->format('H'));
-                    $bucketValues[$hour]++;
+                foreach ($hourlyData->get($user->user_name, collect()) as $row) {
+                    $bucketValues[(int)$row->hour_bucket] = (int) round(($row->cnt * 3) / 60);
                 }
-                
-                $bucketValues = array_map(fn($c) => round(($c * 3) / 60, 1), $bucketValues);
                 $chartDatasets[] = [
                     'label' => $user->name,
                     'data' => $bucketValues,
@@ -958,31 +971,32 @@ class DashboardController extends Controller
                 ];
             }
         } else {
-            // Daily View for dynamic range
+            // Daily view — single GROUP BY query, no per-user row load
             $current = $from->copy();
+            $dateAxis = [];
             while ($current <= $to) {
                 $timelineLabels[] = $current->format('D d/m');
+                $dateAxis[] = $current->toDateString();
                 $current->addDay();
             }
             $numBuckets = count($timelineLabels);
 
+            $dailyData = ActivityLog::whereIn('user_name', $topUserNames)
+                ->where('application', 'LIKE', "%{$searchKey}%")
+                ->whereBetween('recorded_at', [$from, $to])
+                ->selectRaw('user_name, DATE(recorded_at) as day, COUNT(*) as cnt')
+                ->groupBy('user_name', 'day')
+                ->get()
+                ->groupBy('user_name');
+
             foreach ($topUsers as $idx => $user) {
                 $bucketValues = array_fill(0, $numBuckets, 0);
-                $logs = ActivityLog::where('user_name', $user->user_name)
-                    ->where('application', 'LIKE', "%{$software}%")
-                    ->whereBetween('recorded_at', [$from, $to])
-                    ->select('recorded_at')
-                    ->get();
-
-                foreach ($logs as $log) {
-                    $dateStr = Carbon::parse($log->recorded_at)->format('D d/m');
-                    $bucketIdx = array_search($dateStr, $timelineLabels);
+                foreach ($dailyData->get($user->user_name, collect()) as $row) {
+                    $bucketIdx = array_search($row->day, $dateAxis);
                     if ($bucketIdx !== false) {
-                        $bucketValues[$bucketIdx]++;
+                        $bucketValues[$bucketIdx] += (int) round(($row->cnt * 3) / 60);
                     }
                 }
-
-                $bucketValues = array_map(fn($c) => round(($c * 3) / 60, 1), $bucketValues);
                 $chartDatasets[] = [
                     'label' => $user->name,
                     'data' => $bucketValues,
@@ -1018,32 +1032,42 @@ class DashboardController extends Controller
 
         $authorizedUsernames = $this->getAuthorizedUsernames($dept);
 
-        // Get distinct machine and application pairs
-        $query = ActivityLog::select('machine_name', 'application', 'user_name', 'recorded_at');
-
+        // Latest log per machine — one row per machine, not full table scan
+        $latestIds = ActivityLog::selectRaw('MAX(id) as id')->groupBy('machine_name');
         if ($authorizedUsernames !== null) {
-            $query->whereIn('user_name', $authorizedUsernames);
+            $latestIds->whereIn('user_name', $authorizedUsernames);
+        }
+        $latestLogs = ActivityLog::whereIn('id', $latestIds)
+            ->select('machine_name', 'user_name', 'recorded_at')
+            ->get()
+            ->keyBy('machine_name');
+
+        // Distinct apps per machine — grouped, no full table load
+        $appQuery = ActivityLog::selectRaw('machine_name, application, COUNT(*) as cnt')
+            ->groupBy('machine_name', 'application');
+        if ($authorizedUsernames !== null) {
+            $appQuery->whereIn('user_name', $authorizedUsernames);
+        }
+        $appRows = $appQuery->get();
+
+        $machineApps = [];
+        foreach ($appRows as $row) {
+            $base = $this->mapApplicationName($row->application, false); // key: no version
+            $full = $this->mapApplicationName($row->application, true);  // value: with version
+            // Versioned name wins over bare name (e.g. "AutoCAD 2025" beats "AutoCAD")
+            if (!isset($machineApps[$row->machine_name][$base]) || $full !== $base) {
+                $machineApps[$row->machine_name][$base] = $full;
+            }
         }
 
-        $logs = $query->orderBy('recorded_at', 'desc')->get();
-
         $machines = [];
-        foreach ($logs as $log) {
-            $machine = $log->machine_name;
-            $app = $this->mapApplicationName($log->application);
-            
-            if (!isset($machines[$machine])) {
-                $machines[$machine] = [
-                    'name' => $machine,
-                    'last_user' => $log->user_name,
-                    'last_seen' => $log->recorded_at->diffForHumans(),
-                    'apps' => []
-                ];
-            }
-            
-            if (!in_array($app, $machines[$machine]['apps'])) {
-                $machines[$machine]['apps'][] = $app;
-            }
+        foreach ($latestLogs as $machineName => $log) {
+            $machines[$machineName] = [
+                'name'      => $machineName,
+                'last_user' => $log->user_name,
+                'last_seen' => $log->recorded_at->diffForHumans(),
+                'apps'      => array_values($machineApps[$machineName] ?? []),
+            ];
         }
 
         $deptList = ['Architecture', 'MEP', 'Structural', 'Infrastructure', 'Visualization'];
