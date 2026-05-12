@@ -1,0 +1,32 @@
+# ── Project folders not for GitHub ──────────────────────────
+autodesk-montor/
+autodesk-monitorapp/
+license-manager/
+obfuscator_tool/
+trial-protector-tool/
+problems/
+docs/
+node_modules/
+
+# ── Binaries / archives ──────────────────────────────────────
+*.zip
+*.exe
+*.msi
+
+# ── Config / scripts at root ─────────────────────────────────
+create_fresh_dbs.php
+my.ini.optimized
+protect_server.bat
+nssm-2.24.zip
+
+# ── Laravel (inside laravel-app/) ───────────────────────────
+laravel-app/vendor/
+laravel-app/.env
+laravel-app/node_modules/
+laravel-app/storage/logs/*.log
+laravel-app/bootstrap/cache/
+laravel-app/.phpunit.result.cache
+
+# ── Claude internal ──────────────────────────────────────────
+.claude/
+New folder/
