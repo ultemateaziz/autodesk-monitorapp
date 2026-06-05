@@ -8,6 +8,7 @@ use App\Models\UserLicense;
 use App\Models\DismissedNotification;
 use App\Models\UserProfile;
 use App\Models\RevokedSoftware;
+use App\Services\GeoIPService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -447,6 +448,13 @@ class DashboardController extends Controller
             ->groupBy('user_name')
             ->pluck('cnt', 'user_name');
 
+        // 2b. First activity time today per user (login/start time)
+        $firstSeenToday = ActivityLog::selectRaw('user_name, MIN(recorded_at) as first_seen')
+            ->whereIn('user_name', $usernames)
+            ->whereDate('recorded_at', today())
+            ->groupBy('user_name')
+            ->pluck('first_seen', 'user_name');
+
         // 3. Distinct apps per USER — last 90 days
         $allUsedSoftware = ActivityLog::selectRaw('user_name, application')
             ->whereIn('user_name', $usernames)
@@ -469,6 +477,8 @@ class DashboardController extends Controller
         $allProfiles = UserProfile::whereIn('user_name', $usernames)
             ->get()
             ->keyBy('user_name');
+
+        $geo = app(GeoIPService::class);
 
         $users = [];
         foreach ($userLatestLogs as $userName => $lastLog) {
@@ -495,9 +505,14 @@ class DashboardController extends Controller
                 'last_seen'        => $lastLog->recorded_at->diffForHumans(),
                 'is_online'        => $isOnline,
                 'is_idle'          => $isIdle,
-                'total_time_today' => "{$h}h {$m}m",
+                'total_time_today'  => "{$h}h {$m}m",
+                'first_seen_today'  => $firstSeenToday->get($userName)
+                    ? \Carbon\Carbon::parse($firstSeenToday->get($userName))->format('g:i A')
+                    : null,
                 'machine'          => $machineName,
                 'ip_address'       => $lastLog->ip_address,
+                'country'          => $lastLog->ip_address ? $geo->getCountryName($lastLog->ip_address) : 'Unknown',
+                'country_code'     => $lastLog->ip_address ? $geo->getCountry($lastLog->ip_address) : 'XX',
                 'used_software'    => $allUsedSoftware->get($userName, []),
                 'department'       => $department
             ];
@@ -1325,5 +1340,29 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Notification cleared');
+    }
+
+    public function deleteMonitoredUser(Request $request, string $userName)
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            abort(403);
+        }
+
+        $userName = strip_tags(trim($userName));
+        if (empty($userName)) {
+            return redirect()->back()->withErrors(['error' => 'Invalid user.']);
+        }
+
+        ActivityLog::where('user_name', $userName)->delete();
+        UserProfile::where('user_name', $userName)->delete();
+        UserLicense::where('user_name', $userName)->delete();
+        RevokedSoftware::where('user_name', $userName)->delete();
+        \App\Models\MonitorAssignment::where('monitored_user_name', $userName)->delete();
+        DismissedNotification::where('user_name', $userName)->delete();
+
+        AuditLog::record($request, 'monitored_user_deleted', $userName,
+            'Deleted all monitoring data for user: ' . $userName);
+
+        return redirect()->back()->with('success', 'User "' . $userName . '" and all their data have been permanently deleted.');
     }
 }

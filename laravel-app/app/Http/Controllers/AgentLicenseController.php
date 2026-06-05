@@ -110,7 +110,24 @@ class AgentLicenseController extends Controller
             'revoked' => $machines->where('status', 'revoked')->count(),
         ];
 
-        return view('machine_licensing', compact('machines', 'counts'));
+        // Read seat cap from license.json (set by LicenseHub activation/pulse)
+        $maxMachines = $this->readMaxMachinesFromLicense();
+
+        return view('machine_licensing', compact('machines', 'counts', 'maxMachines'));
+    }
+
+    private function readMaxMachinesFromLicense(): ?int
+    {
+        $file = storage_path('app/license.json');
+        if (! file_exists($file)) {
+            return null;
+        }
+        try {
+            $data = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+            return isset($data['max_machines']) ? (int) $data['max_machines'] : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

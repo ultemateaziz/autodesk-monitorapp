@@ -70,11 +70,6 @@ class ReportController extends Controller
             ->distinct('user_name')
             ->count('user_name');
 
-        $uniqueApps = ActivityLog::whereBetween('recorded_at', [$from, $to])
-            ->when($authorizedUsernames, fn($q) => $q->whereIn('user_name', $authorizedUsernames))
-            ->distinct('application')
-            ->count('application');
-
         // Active user = logged at least 1 hour in period
         $activeUsersRaw = ActivityLog::whereBetween('recorded_at', [$from, $to])
             ->when($authorizedUsernames, fn($q) => $q->whereIn('user_name', $authorizedUsernames))
@@ -98,11 +93,13 @@ class ReportController extends Controller
             $appUsageMap[$clean] = ($appUsageMap[$clean] ?? 0) + $row->cnt;
         }
         arsort($appUsageMap);
-        $topApps = array_slice($appUsageMap, 0, 10, true);
 
-        $maxCnt = max($topApps ?: [1]);
+        // Derived from mapped names — consistent with what's shown in usage section
+        $uniqueApps = count($appUsageMap);
+
+        $maxCnt = max($appUsageMap ?: [1]);
         $appUsage = [];
-        foreach ($topApps as $app => $cnt) {
+        foreach ($appUsageMap as $app => $cnt) {
             $secs = $cnt * 3;
             $h    = floor($secs / 3600);
             $m    = floor(($secs % 3600) / 60);

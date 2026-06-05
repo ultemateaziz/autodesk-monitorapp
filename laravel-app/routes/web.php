@@ -58,6 +58,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckLicenseActivated::class])->
     Route::post('/revoke-software', [DashboardController::class, 'revokeSoftware'])->name('software.revoke');
     Route::post('/restore-software', [DashboardController::class, 'restoreSoftware'])->name('software.restore');
     Route::post('/remove-software-permanently', [DashboardController::class, 'permanentlyRemoveSoftware'])->name('software.remove-permanent');
+    Route::delete('/users/{userName}', [DashboardController::class, 'deleteMonitoredUser'])->name('monitored-user.destroy');
 
     // User Management (Master Admin Only)
     Route::get('/user-management', [UserController::class, 'index'])->name('user-management');

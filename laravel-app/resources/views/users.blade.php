@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-GB" data-theme="dark">
 
 <head>
@@ -102,9 +102,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo-container">
-            <div class="logo-icon">
-                <i class="fas fa-compass-drafting"></i>
-            </div>
+            <div class="logo-icon"><img src="{{ asset('images/allcadlogo.png') }}" alt="AllCAD" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
             <span class="logo-text">ACLM</span>
         </div>
 
@@ -371,8 +369,9 @@
                         <tr>
                             <th>User Info</th>
                             <th>Team / Dept</th>
-                            <th>Today's Activity</th>
+                            <th>Today's Productivity</th>
                             <th>Machine ID</th>
+                            <th>Location</th>
                             <th>Used Software</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -433,8 +432,13 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td><span class="activity-time"
-                                        style="font-weight: 600; font-size: 13px;">{{ $user->total_time_today }}</span>
+                                <td>
+                                    @if ($user->first_seen_today)
+                                        <div style="font-size: 11px; color: var(--text-muted, #888); margin-bottom: 3px;">
+                                            <i class="fas fa-sign-in-alt" style="font-size: 10px; margin-right: 3px;"></i>{{ $user->first_seen_today }}
+                                        </div>
+                                    @endif
+                                    <span class="activity-time" style="font-weight: 600; font-size: 13px;">{{ $user->total_time_today }}</span>
                                 </td>
                                 <td>
                                     <span class="machine-id">{{ $user->machine }}</span>
@@ -442,6 +446,21 @@
                                         <br><span style="font-size: 11px; color: var(--text-muted, #888); font-family: 'JetBrains Mono', monospace;">
                                             <i class="fas fa-network-wired" style="font-size: 10px;"></i>
                                             {{ $user->ip_address }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if (!in_array($user->country_code, ['XX', 'UNKNOWN', 'LOCAL']))
+                                        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-primary);">
+                                            <img src="https://flagcdn.com/16x12/{{ strtolower($user->country_code) }}.png"
+                                                 alt="{{ $user->country_code }}"
+                                                 style="width:16px; height:12px; border-radius:2px; flex-shrink:0;">
+                                            {{ $user->country }}
+                                        </span>
+                                    @else
+                                        <span style="font-size: 11px; color: var(--text-muted); opacity: 0.6;">
+                                            <i class="fas fa-question-circle" style="font-size: 10px;"></i>
+                                            {{ $user->country }}
                                         </span>
                                     @endif
                                 </td>
@@ -541,6 +560,15 @@
                                                 style="background: none; border: none; cursor: pointer; color: var(--text-primary);">
                                                 <i class="fas fa-pencil"></i>
                                             </button>
+                                            <form action="{{ route('monitored-user.destroy', $user->name) }}" method="POST" style="margin:0;"
+                                                onsubmit="return confirm('DELETE {{ $user->name }}?\n\nThis permanently removes ALL activity logs, profile, licenses, and software records for this user. Cannot be undone.')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" title="Delete User Permanently"
+                                                    style="background:none;border:none;cursor:pointer;color:#f87171;font-size:13px;padding:4px 6px;line-height:1;">
+                                                    <i class="fas fa-user-slash"></i>
+                                                </button>
+                                            </form>
                                         @endif
                                         <a href="{{ route('profile', $user->name) }}" class="action-icon"
                                             title="View Profile">
@@ -808,3 +836,5 @@
 </body>
 
 </html>
+
+

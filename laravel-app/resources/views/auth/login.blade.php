@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-GB">
 
 <head>
@@ -322,9 +322,7 @@
         <!-- Visualization Panel -->
         <div class="login-side-image">
             <div class="brand-logo">
-                <div class="logo-icon">
-                    <i class="fas fa-compass-drafting"></i>
-                </div>
+                <div class="logo-icon"><img src="{{ asset('images/allcadlogo.png') }}" alt="AllCAD" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
                 <span class="logo-text">ACLM</span>
             </div>
 
@@ -400,3 +398,5 @@
 </body>
 
 </html>
+
+

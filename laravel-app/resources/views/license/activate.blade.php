@@ -238,7 +238,7 @@
 <div class="card">
 
     <div class="logo">
-        <div class="logo-icon">🏗</div>
+        <div class="logo-icon"><img src="{{ asset('images/allcadlogo.png') }}" alt="AllCAD" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
         <h1>ACLM</h1>
         <p>Autodesk Software Monitor</p>
     </div>

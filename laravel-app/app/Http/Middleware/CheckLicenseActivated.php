@@ -65,7 +65,7 @@ class CheckLicenseActivated
         $url = rtrim(config('services.license_manager.url'), '/');
 
         try {
-            $response = Http::withoutVerifying()->timeout(8)->post("{$url}/api/license/pulse", [
+            $response = Http::withoutVerifying()->withOptions(['proxy' => ''])->timeout(8)->post("{$url}/api/license/pulse", [
                 'license_key' => $key,
                 'hardware_id' => $this->getMachineId(),
                 'machine_id'  => gethostname(),
@@ -75,14 +75,20 @@ class CheckLicenseActivated
             $status = $body['status'] ?? 'unknown';
 
             $cached = [
-                'status'     => $status,
-                'message'    => $body['message']      ?? '',
-                'tier'       => $body['tier']          ?? '',
-                'expires_at' => $body['expires_at']    ?? '',
-                'days_left'  => $body['days_left']     ?? null,
-                'customer'   => $body['customer_name'] ?? '',
-                'checked'    => now()->toDateTimeString(),
+                'status'       => $status,
+                'message'      => $body['message']       ?? '',
+                'tier'         => $body['tier']           ?? '',
+                'expires_at'   => $body['expires_at']     ?? '',
+                'days_left'    => $body['days_left']      ?? null,
+                'customer'     => $body['customer_name']  ?? '',
+                'max_machines' => $body['max_machines']   ?? null,
+                'checked'      => now()->toDateTimeString(),
             ];
+
+            // Keep license.json max_machines in sync when LicenseHub tier changes
+            if ($status === 'valid' && array_key_exists('max_machines', $body)) {
+                $this->updateLicenseJsonMaxMachines($body['max_machines']);
+            }
 
         } catch (\Exception $e) {
             // LicenseHub unreachable — allow access but store unreachable status
@@ -122,6 +128,28 @@ class CheckLicenseActivated
             return is_array($data) ? $data : [];
         } catch (\Throwable) {
             return [];
+        }
+    }
+
+    private function updateLicenseJsonMaxMachines(?int $maxMachines): void
+    {
+        $file = storage_path('app' . DIRECTORY_SEPARATOR . 'license.json');
+
+        if (! file_exists($file)) {
+            return;
+        }
+
+        try {
+            $data = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+            if (! is_array($data)) {
+                return;
+            }
+            if (($data['max_machines'] ?? null) !== $maxMachines) {
+                $data['max_machines'] = $maxMachines;
+                file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+            }
+        } catch (\Throwable) {
+            // Non-critical — leave existing file intact
         }
     }
 }

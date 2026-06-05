@@ -487,7 +487,7 @@ class ProfileController extends Controller
         while ($cursor->lte($endCarbon)) {
             $dateKey  = $cursor->toDateString();
             $sessions = $dayGroups[$dateKey] ?? [];
-            $daySec   = array_sum(array_map(fn($s) => $s['poll_count'] * 3, $sessions));
+            $daySec   = array_sum(array_map(fn($s) => $s['duration_sec'], $sessions));
             $overallSec += $daySec;
 
             $dh = floor($daySec / 3600);
@@ -516,7 +516,7 @@ class ProfileController extends Controller
             $rows   = [];
 
             foreach ($sessions as $session) {
-                $secDur  = $session['poll_count'] * 3;
+                $secDur  = $session['duration_sec'];
                 $daySec += $secDur;
                 $h       = floor($secDur / 3600);
                 $m       = floor(($secDur % 3600) / 60);
@@ -621,7 +621,7 @@ class ProfileController extends Controller
         while ($cursor->lte($endCarbon)) {
             $dateKey  = $cursor->toDateString();
             $sessions = $dayGroups[$dateKey] ?? [];
-            $daySec   = array_sum(array_map(fn($s) => $s['poll_count'] * 3, $sessions));
+            $daySec   = array_sum(array_map(fn($s) => $s['duration_sec'], $sessions));
             $overallSec += $daySec;
 
             $dh       = floor($daySec / 3600);
@@ -654,7 +654,7 @@ class ProfileController extends Controller
             $daySec = 0;
 
             foreach ($sessions as $session) {
-                $secDur  = $session['poll_count'] * 3;
+                $secDur  = $session['duration_sec'];
                 $daySec += $secDur;
                 $h       = floor($secDur / 3600);
                 $m       = floor(($secDur % 3600) / 60);
@@ -840,6 +840,15 @@ class ProfileController extends Controller
 
         if ($currentSession !== null) {
             $dayGroups[$currentSession['date']][] = $currentSession;
+        }
+
+        // Add wall-clock duration to every session — prevents double-counting when
+        // multiple machines report for the same user simultaneously (inflates poll_count).
+        foreach ($dayGroups as $dateKey => $sessions) {
+            foreach ($sessions as $i => $session) {
+                $dayGroups[$dateKey][$i]['duration_sec'] =
+                    $session['end']->diffInSeconds($session['start']) + 3;
+            }
         }
 
         return $dayGroups;

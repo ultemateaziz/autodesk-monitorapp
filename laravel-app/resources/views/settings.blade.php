@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-GB" data-theme="dark">
 
 <head>
@@ -149,9 +149,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo-container">
-            <div class="logo-icon">
-                <i class="fas fa-compass-drafting"></i>
-            </div>
+            <div class="logo-icon"><img src="{{ asset('images/allcadlogo.png') }}" alt="AllCAD" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
             <span class="logo-text">ACLM</span>
         </div>
 
@@ -949,3 +947,5 @@
 </body>
 
 </html>
+
+

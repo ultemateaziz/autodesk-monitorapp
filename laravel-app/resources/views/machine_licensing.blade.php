@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-GB" data-theme="dark">
 
 <head>
@@ -63,7 +63,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo-container">
-            <div class="logo-icon"><i class="fas fa-compass-drafting"></i></div>
+            <div class="logo-icon"><img src="{{ asset('images/allcadlogo.png') }}" alt="AllCAD" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
             <span class="logo-text">ACLM</span>
         </div>
 
@@ -183,6 +183,44 @@
                     <div class="stat-number" style="color: #ef4444;">{{ $counts['revoked'] }}</div>
                     <div class="stat-label">Revoked</div>
                 </div>
+            </div>
+
+            <!-- Seat Licence Usage Bar -->
+            @php
+                $seatUsed  = $counts['active'];
+                $seatLimit = $maxMachines ?? null;
+                $seatPct   = ($seatLimit && $seatLimit > 0) ? min(100, round(($seatUsed / $seatLimit) * 100)) : 0;
+                $barColor  = $seatPct >= 90 ? '#ef4444' : ($seatPct >= 70 ? '#f59e0b' : '#10b981');
+            @endphp
+            <div class="card" style="padding: 18px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+                            <i class="fas fa-shield-halved" style="margin-right: 6px;"></i>Agent Seat Usage
+                        </span>
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">
+                            @if($seatLimit)
+                                {{ $seatUsed }} / {{ $seatLimit }} active
+                                @if($seatPct >= 90)
+                                    <span style="color: #ef4444; margin-left: 8px; font-size: 11px;"><i class="fas fa-exclamation-triangle"></i> Near limit</span>
+                                @endif
+                            @else
+                                {{ $seatUsed }} active &mdash; <span style="color: #818cf8;">Unlimited</span>
+                            @endif
+                        </span>
+                    </div>
+                    @if($seatLimit)
+                        <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 8px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ $seatPct }}%; background: {{ $barColor }}; border-radius: 6px; transition: width 0.4s;"></div>
+                        </div>
+                    @endif
+                </div>
+                @if($seatLimit)
+                    <div style="text-align: right; white-space: nowrap;">
+                        <div style="font-size: 11px; color: var(--text-muted);">{{ $seatLimit - $seatUsed }} seat{{ ($seatLimit - $seatUsed) !== 1 ? 's' : '' }} remaining</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Managed by LicenseHub</div>
+                    </div>
+                @endif
             </div>
 
             <!-- Filter tabs -->
@@ -342,3 +380,5 @@
     </script>
 </body>
 </html>
+
+

@@ -29,7 +29,7 @@ class LicenseActivationController extends Controller
 
         // ── Call LicenseHub to activate ───────────────────────────
         try {
-            $response = Http::withoutVerifying()->timeout(15)->post("{$serverUrl}/api/license/activate", [
+            $response = Http::withoutVerifying()->withOptions(['proxy' => ''])->timeout(15)->post("{$serverUrl}/api/license/activate", [
                 'license_key' => $key,
                 'hardware_id' => $hardwareId,
                 'machine_id'  => gethostname(),

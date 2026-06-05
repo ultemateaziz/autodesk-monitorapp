@@ -620,7 +620,7 @@
                 <div class="chart-panel">
                     <h3><i class="fas fa-layer-group" style="color:var(--violet);margin-right:8px;"></i>Application
                         Usage</h3>
-                    <p>Top apps by total hours used in the period</p>
+                    <p>All {{ count($appUsage) }} apps by total hours used in the period</p>
                     <div class="bar-list" style="margin-top:8px;">
                         @foreach ($appUsage as $idx => $row)
                             <div class="bar-row">
